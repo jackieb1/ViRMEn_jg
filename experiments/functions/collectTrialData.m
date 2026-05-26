@@ -16,5 +16,10 @@ if vr.numTrials>0
     sessionDataName = fullfile(vr.fullPath,'sessionData');
     experData = vr.exper;
     experName = experData.name;
-    save(sessionDataName,'sessionData','experData', 'experName'),
+    ops = vr.ops;
+    rewardSize        = vr.rewardSize;                                  % session reward size key, e.g. '6'
+    rewardDurationSec = vr.ops.rewardPulseDurationDict(vr.rewardSize);  % calibrated duration, e.g. 0.075
+    numRewards        = vr.numRewards;
+    save(sessionDataName,'sessionData','experData', 'experName', 'ops', ...
+        'rewardSize', 'rewardDurationSec', 'numRewards'),
 end

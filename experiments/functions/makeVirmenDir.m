@@ -5,6 +5,7 @@ currentdir = cd;
 if vr.debugMode
     vr.mouseNum = randi(1e6,1)+1e3;
     vr.basePath = 'C:\DATA\Debug';
+    vr.rewardSize = vr.ops.defaultRewardSize; % keep reward delivery working in debug mode
 else
     prompt = {'Mouse ID','Max Volume (ul)', 'Reward Size'};
     dlgtitle = 'Input Session Parameters';
@@ -15,6 +16,12 @@ else
     vr.mouseNum = mouseInfo{1};
     vr.maxRewardVolume = str2num(mouseInfo{2});
     vr.rewardSize = mouseInfo{3};
+    allKeys = keys(vr.ops.rewardPulseDurationDict);
+    validSessionSizes = allKeys(~isnan(cellfun(@str2double, allKeys))); % numeric keys only (excludes 'flush')
+    if ~ismember(vr.rewardSize, validSessionSizes)
+        error('Reward size "%s" is not a valid session size. Valid sizes: %s', ...
+              vr.rewardSize, strjoin(validSessionSizes, ', '));
+    end
     vr.maxNumRewards = vr.maxRewardVolume / str2num(vr.rewardSize);
     vr.basePath = vr.ops.dataDirectory; 
 end

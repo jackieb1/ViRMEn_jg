@@ -34,7 +34,8 @@ c = distFromScreenToMouse;
 % the shape of the screen
 x = ((-b-sqrt(b.^2 - 4.*a.*c))./(2.*a));
 x = x.*xSign;
-
+x_offset = -0.85;
+x = x + x_offset;
 
 % x = max([x; x2]).*xSign;
 x(x<-20) = -20;

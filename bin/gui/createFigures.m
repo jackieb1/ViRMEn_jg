@@ -79,7 +79,7 @@ for ndx = 1:size(txt,1)
             buttons.(makeVar(row{colm.ToolTip})) = h;
             menus.(makeVar(row{colm.ToolTip})) = m;
         case 'dropdown'
-            hm = uisplittool(toolbar,'tooltipstring',row{colm.ToolTip});
+            hm = uipushtool(toolbar,'tooltipstring',row{colm.ToolTip});
             set(hm,'separator',row{colm.Separator});
             f = strfind(row{colm.Icon},'_');
             if isempty(f)
@@ -92,36 +92,40 @@ for ndx = 1:size(txt,1)
             set(hm,'userdata',row{colm.Figure});
             lst = populateList(row{colm.Callback});
             drawnow
-            j = get(hm,'javacontainer');
-            jmenu = get(j,'menucomponent');
             h = {};
-            warning off MATLAB:hg:JavaSetHGProperty;
-            warning off MATLAB:hg:PossibleDeprecatedJavaSetHGProperty;
-            for m = 1:length(lst)
-                h{m} = jmenu.add(lst(m).name); %#ok<AGROW>
-                jButton = handle(h{m}, 'CallbackProperties');
-                set(jButton,'ActionPerformedCallback',['virmenEventHandler(''' lst(m).callback ''',''' lst(m).callbackArgument ''');']);
-            end
-            drawnow
-            
-            mfile = mfilename('fullpath');
-            path = fileparts(mfile);
-            for m = 1:length(lst)
-                if ischar(lst(m).icon)
-                    icon = javax.swing.ImageIcon([path filesep 'icons' filesep lst(m).icon '.png']);
-                else
-                    tmp = tempname;
-                    imwrite(lst(m).icon,[tmp '.png']);
-                    icon = javax.swing.ImageIcon([tmp '.png']);
+            try
+                j = get(hm,'javacontainer');
+                jmenu = get(j,'menucomponent');
+                warning off MATLAB:hg:JavaSetHGProperty;
+                warning off MATLAB:hg:PossibleDeprecatedJavaSetHGProperty;
+                for m = 1:length(lst)
+                    h{m} = jmenu.add(lst(m).name); %#ok<AGROW>
+                    jButton = handle(h{m}, 'CallbackProperties');
+                    set(jButton,'ActionPerformedCallback',['virmenEventHandler(''' lst(m).callback ''',''' lst(m).callbackArgument ''');']);
                 end
-                h{m}.setIcon(icon);
+                drawnow
+                mfile = mfilename('fullpath');
+                path = fileparts(mfile);
+                for m = 1:length(lst)
+                    if ischar(lst(m).icon)
+                        icon = javax.swing.ImageIcon([path filesep 'icons' filesep lst(m).icon '.png']);
+                    else
+                        tmp = tempname;
+                        imwrite(lst(m).icon,[tmp '.png']);
+                        icon = javax.swing.ImageIcon([tmp '.png']);
+                    end
+                    h{m}.setIcon(icon);
+                end
+            catch
+                % JVM not available in R2025b+; skip toolbar button dropdowns.
+                % Same actions remain accessible via the menu bar built below.
             end
             
             m = uimenu(menus.(row{colm.Menu}),'Label',row{colm.MenuLabel},'userdata',row{colm.ToolTip});
             if length(get(menus.(row{colm.Menu}),'children')) > 1
                 set(m,'separator',get(hm,'separator'));
             end
-            for mndx = 1:length(h)
+            for mndx = 1:length(lst)
                 uimenu(m,'Label',lst(mndx).name,'callback',['virmenEventHandler(''' lst(mndx).callback ''',''' lst(mndx).callbackArgument ''');'], ...
                     'accelerator',lst(mndx).shortcut,'userdata','n/a');
             end
@@ -183,6 +187,9 @@ set(ch(end),'checked','on');
 f = menus.(makeVar('Experiment layout'));
 set(f,'checked','on');
 
+handles.figs = figs;
+handles.buttons = buttons;
+handles.menus = menus;
 guidata(guifig, handles)
 
 function icon = createCombinedIcon(main,inset)

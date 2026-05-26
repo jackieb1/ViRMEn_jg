@@ -62,6 +62,15 @@ methods
 	    obj.writeString(stringToSend);
 	end
 
+	function writeValveCommand(obj, valve1ms, valve2ms)
+	    % 6-digit reward command for behaviorPCB_v1_1.ino:
+	    % first 3 digits = valve 1 ms, last 3 = valve 2 ms.
+	    % Legacy serial/fprintf takes (obj,format,data); the \n in the
+	    % format string is sent as the Terminator (CR/LF).
+	    cmd = sprintf('%03d%03d', valve1ms, valve2ms);
+	    fprintf(obj.serialConnection, '%s\n', cmd);
+	end
+
 	function writeString(obj, stringToWrite)
 	    fprintf(obj.serialConnection,'%s',stringToWrite);
 
@@ -88,8 +97,10 @@ methods
 		% run user code to evaluate the message
         %feval(obj.messgeCallbackFcn, obj.arduinoMessageString);
         obj.messgeCallbackFcn(obj.arduinoMessageString);
-        thisMessage = [str2num(obj.arduinoMessageString) now];
-        fwrite(vr.serialFileID,thisMessage,'double');
+        if isfield(vr,'serialFileID') && ~isempty(vr.serialFileID)
+            thisMessage = [str2num(obj.arduinoMessageString) now]; %#ok<ST2NM>
+            fwrite(vr.serialFileID,thisMessage,'double');
+        end
 
 	end
 
