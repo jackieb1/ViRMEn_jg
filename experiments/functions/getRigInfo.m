@@ -1,7 +1,7 @@
 
 function ops = getRigInfo(varargin)
 %Code from Noah's github rep, eddited by SS March 2018
-                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % I am altering this to be a much more general functio
 %n that can be called
 % by other functions (such as calibration and testing functions)
@@ -20,30 +20,30 @@ if isempty(rigName)
     rigName = '0';
 end
 
-switch rigName      
-   
+switch rigName
+
     case 'GreenLab_Behavior_rig1'
         ops.rigName = rigName;
-        
+
         % daq settings
         ops.dev = 'dev1';
         ops.dioDev = 'dev1';
         ops.optoDIOPort = 'Port0/Line7';
-        
+
         % opto settings
         ops.optoOffset_V = 0.04;
         ops.optoAO0_V = 0.11; %2.3 mW with cap, 2.88 mW without
         ops.optoAO1_V = 0.063;
-%         ops.optoAO0_V = 0.18;  %4.6 mW with cap
-%         ops.optoAO1_V = 0.14;
-        
+        %         ops.optoAO0_V = 0.18;  %4.6 mW with cap
+        %         ops.optoAO1_V = 0.14;
+
         % ball sensor offset
         ops.ballSensorOffset = [1.6425, 1.647, 1.646]; % JEB - 2026-05-14
         ops.forwardGain = -1110;
         ops.viewAngleGain = 27;
         ops.sideGain = ops.forwardGain / 4;
         ops.sideOffset = -112;
-        
+
         % reward calibration through init_variables.h
         ops.useTeensyReward = true;
         ops.comPortTeensy = 'COM4';
@@ -53,8 +53,44 @@ switch rigName
         ops.rewardPulseDurationDict('7') = 0.075;
         ops.defaultRewardSize = '4';
         ops.defaultMaxRewardVolume = '800';
-%         ops.defaultMaxNumRewards = '200';
-        
+        %         ops.defaultMaxNumRewards = '200';
+
+        % base data directory settings
+        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\TestDataDir';
+
+    case 'GreenLab_Behavior_rig2'
+        ops.rigName = rigName;
+
+        % daq settings
+        ops.dev = 'dev2';
+        ops.dioDev = 'dev2';
+        ops.optoDIOPort = 'Port0/Line7';
+
+        % opto settings
+        ops.optoOffset_V = 0.04;
+        ops.optoAO0_V = 0.11; %2.3 mW with cap, 2.88 mW without
+        ops.optoAO1_V = 0.063;
+        %         ops.optoAO0_V = 0.18;  %4.6 mW with cap
+        %         ops.optoAO1_V = 0.14;
+
+        % ball sensor offset
+        ops.ballSensorOffset = [1.631, 1.647, 1.646]; % JEB - 2026-05-14
+        ops.forwardGain = -500;
+        ops.viewAngleGain = 27;
+        ops.sideGain = ops.forwardGain / 4;
+        ops.sideOffset = -112;
+
+        % reward calibration through init_variables.h
+        ops.useTeensyReward = true;
+        ops.comPortTeensy = 'COM5';
+        ops.rewardPulseDurationDict = containers.Map;
+        ops.rewardPulseDurationDict('4') = 0.055;
+        ops.rewardPulseDurationDict('2') = 0.035;
+        ops.rewardPulseDurationDict('7') = 0.075;
+        ops.defaultRewardSize = '4';
+        ops.defaultMaxRewardVolume = '800';
+        %         ops.defaultMaxNumRewards = '200';
+
         % base data directory settings
         ops.dataDirectory = 'C:\Users\GreenLab\Desktop\TestDataDir';
 
@@ -64,31 +100,19 @@ switch rigName
         % try to determine rig name automatically
         name = getenv('COMPUTERNAME');
         switch name
-            case 'OPTORIG' %'HARVEYRIG2'
-                rigName = 'Optorig';
-            case 'BEHAVIOR_RIG1'
-                rigName = 'Behavior_rig1';
-            case 'DESKTOP-SOH909T'
-                rigName = 'Behavior_rig2';
-            case 'DESKTOP-DUIPR9M'
-                rigName = 'Behavior_rig3';
-            case 'DESKTOP-3HCFBPM'
-                rigName = 'Rotation_scope'; 
-            case 'HARVEYLABCP'
-                rigName = 'Loki';
-            case 'DESKTOP-ID06G8C'
-                rigName = 'Anna_2PStim';
             case 'MB-GREE-0258'
                 rigName = 'GreenLab_Behavior_rig1';
+            case 'MB-GREE-0257'
+                rigName = 'GreenLab_Behavior_rig2';
             otherwise
                 error('Could not find this rig! Check getRigInfo.m');
         end
         disp(['This computer is ' rigName]);
         ops = getRigInfo(rigName);
-        
+
     otherwise
-        error('Could not find this rig! Check getRigInfo.m'); 
-        
+        error('Could not find this rig! Check getRigInfo.m');
+
 end
 
 end
