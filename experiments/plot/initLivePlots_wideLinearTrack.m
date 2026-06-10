@@ -40,6 +40,7 @@ function vr = initLivePlots_linearMaze(vr)
     text(0, -3, ['Trials/min: NA'])
     text(0, -4, ['Rewards/min: NA'])
     text(0, -5, ['% Correct: NA'])
+    text(0, -6, ['% Correct - recent: NA'])
     set(gca,'visible','off')
 end
 
