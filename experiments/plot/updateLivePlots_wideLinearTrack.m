@@ -28,6 +28,9 @@ function vr = updateLivePlots_wideLinearTrack(vr)
     text(0, -3, ['Trials/min: ' num2str(vr.numTrials/sessionTime_min)])
     text(0, -4, ['Rewards/min: ' num2str(vr.numRewards/sessionTime_min)])
     text(0, -5, ['% Correct: ' num2str(mean(vr.correctTrials)*100)])
+    recentWindow = 20;
+    recent = vr.correctTrials(max(1, numel(vr.correctTrials)-recentWindow+1):end);
+    text(0, -6, ['% Correct - recent: ' num2str(mean(recent)*100)])
 %     set(gca,'visible','off')
 end
 
