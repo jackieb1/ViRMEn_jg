@@ -27,12 +27,17 @@ function vr = initializationCodeFun(vr)
     vr.ops = getRigInfo();
     vr = makeVirmenDir(vr);
     vr = initDAQ(vr);
+%%%%%%%%%%%%%JEB%%%%%%%%%%%%%%%%%%%%%%%
+vr = initVelVoltagePlot(vr);     % <-- add this (must be after initDAQ)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     vr = initLivePlots_linearMaze(vr);
     
     % Initialize maze
     vr = initLinearTrack(vr);
     vr.lastRewardLocation = 0;
     vr.rewardDistance = 9;
+
+
     
     
 
@@ -41,6 +46,20 @@ function vr = runtimeCodeFun(vr)
     if vr.numRewards >= vr.maxNumRewards
         vr.experimentEnded = true;
     end
+
+    %%%%%%%%%%%%%%%JEB%%%%%%%%%%%%%%%%
+    % figure(4)
+    % 
+    % title('Pitch signal')
+    % ylabel('Signal')
+    % xlabel('VR iters')
+    % 
+    % global daqData
+    % scatter(1,daqData(1))
+    % hold on
+    % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    
 
     % Loop maze
     if vr.position(2) > vr.mazeLength
@@ -56,6 +75,9 @@ function vr = runtimeCodeFun(vr)
 
     vr = outputVirmenTrigger(vr);
     vr = collectBehaviorIter_TMaze(vr);
+    %%%%%%%%JEB%%%%%%%%%%%%%%
+    vr = updateVelVoltagePlot(vr);   % <-- add this
+    %%%%%%%%%%%%%%%%%%%%%%%%%
     vr = checkForManualReward(vr); % Deliver reward if 'r' key pressed
 
     if vr.position(2) > (vr.lastRewardLocation + vr.rewardDistance)

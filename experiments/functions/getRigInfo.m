@@ -30,16 +30,11 @@ switch rigName
         ops.dioDev = 'dev1';
         ops.optoDIOPort = 'Port0/Line7';
 
-        % opto settings
-        ops.optoOffset_V = 0.04;
-        ops.optoAO0_V = 0.11; %2.3 mW with cap, 2.88 mW without
-        ops.optoAO1_V = 0.063;
-        %         ops.optoAO0_V = 0.18;  %4.6 mW with cap
-        %         ops.optoAO1_V = 0.14;
 
         % ball sensor offset
         ops.ballSensorOffset = [1.6425, 1.647, 1.646]; % JEB - 2026-05-14
         ops.forwardGain = -1110;
+        ops.forwardDeadband = 0.003; % volts; suppress resting +/-1-count jitter on data(1). Tune to just above resting noise.
         ops.viewAngleGain = 27;
         ops.sideGain = ops.forwardGain / 4;
         ops.sideOffset = -112;
@@ -66,16 +61,11 @@ switch rigName
         ops.dioDev = 'dev2';
         ops.optoDIOPort = 'Port0/Line7';
 
-        % opto settings
-        ops.optoOffset_V = 0.04;
-        ops.optoAO0_V = 0.11; %2.3 mW with cap, 2.88 mW without
-        ops.optoAO1_V = 0.063;
-        %         ops.optoAO0_V = 0.18;  %4.6 mW with cap
-        %         ops.optoAO1_V = 0.14;
 
         % ball sensor offset
-        ops.ballSensorOffset = [1.631, 1.647, 1.646]; % JEB - 2026-05-14
-        ops.forwardGain = -500;
+        ops.ballSensorOffset = [1.633, 1.647, 1.646]; % JEB - 2026-05-14
+        ops.forwardGain = -135;
+        ops.forwardDeadband = 0.003; % volts; suppress resting +/-1-count jitter on data(1). Tune to just above resting noise.
         ops.viewAngleGain = 27;
         ops.sideGain = ops.forwardGain / 4;
         ops.sideOffset = -112;
