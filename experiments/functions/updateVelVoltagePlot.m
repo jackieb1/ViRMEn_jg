@@ -34,6 +34,21 @@ function vr = updateVelVoltagePlot(vr)
     end
     p.t(k) = tnow; p.v(k) = raw; p.f(k) = fwd;
 
+    % ---- detect reward delivery (vr.numRewards rising edge) ----
+    if isfield(vr, 'numRewards') && ~isempty(vr.numRewards)
+        nr = vr.numRewards;
+        if isnan(p.lastNumReward)
+            p.lastNumReward = nr;          % baseline: don't redraw pre-existing rewards
+        elseif nr > p.lastNumReward
+            p.rewT(end+1) = tnow;          % new reward(s) delivered this iteration
+            p.lastNumReward = nr;
+        end
+    end
+    % keep only rewards still inside the visible window
+    if ~isempty(p.rewT)
+        p.rewT = p.rewT(p.rewT >= (tnow - p.windowSec));
+    end
+
     % ---- visible window ----
     sel = p.t >= (tnow - p.windowSec);
     tt = p.t(sel); vv = p.v(sel); ff = p.f(sel);
@@ -61,11 +76,44 @@ function vr = updateVelVoltagePlot(vr)
         ylim(p.ax3, [-1 1]*spanF);
     end
 
-    set(p.hTxt, 'String', sprintf('VEL\\_P=%.4f V  \\Delta=%+.4f V  fwd=%+.2f', ...
-        raw, raw - p.offset, fwd));
+    % ---- reward markers (scrolling vertical lines spanning each panel) ----
+    [rx1, ry1] = local_vlines(p.rewT, ylim(p.ax1));
+    [rx2, ry2] = local_vlines(p.rewT, ylim(p.ax2));
+    [rx3, ry3] = local_vlines(p.rewT, ylim(p.ax3));
+    set(p.hRew1, 'XData', rx1, 'YData', ry1);
+    set(p.hRew2, 'XData', rx2, 'YData', ry2);
+    set(p.hRew3, 'XData', rx3, 'YData', ry3);
+
+    set(p.hTxt, 'String', sprintf('VEL\\_P=%.4f V  \\Delta=%+.4f V  fwd=%+.2f  rew=%d', ...
+        raw, raw - p.offset, fwd, local_rewardCount(vr)));
 
     vr.velPlot = p;
     drawnow limitrate;
+end
+
+% -------------------------------------------------------------------------
+function [x, y] = local_vlines(times, yl)
+% Build XData/YData for a set of vertical lines at the given x positions,
+% each spanning the y-limits yl, using NaN separators so a single line
+% handle renders them all.
+    if isempty(times)
+        x = nan; y = nan; return;
+    end
+    n = numel(times);
+    x = nan(1, 3*n);
+    y = nan(1, 3*n);
+    x(1:3:end) = times;   y(1:3:end) = yl(1);
+    x(2:3:end) = times;   y(2:3:end) = yl(2);
+    % every 3rd point left as NaN to lift the pen between lines
+end
+
+% -------------------------------------------------------------------------
+function n = local_rewardCount(vr)
+    if isfield(vr, 'numRewards') && ~isempty(vr.numRewards)
+        n = vr.numRewards;
+    else
+        n = 0;
+    end
 end
 
 % -------------------------------------------------------------------------

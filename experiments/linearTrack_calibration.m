@@ -17,6 +17,7 @@ vr.ops = getRigInfo();
 vr = makeVirmenDir(vr);
 vr = initTMaze(vr);
 vr = initDAQ(vr);
+vr = initVelVoltagePlot(vr);     % live VEL_P voltage -> velocity plot (must be after initDAQ)
 % vr = initLivePlots_linearMaze(vr);
 
 % --- RUNTIME code: executes on every iteration of the ViRMEn engine.
@@ -31,6 +32,7 @@ end
 
 % vr = outputVirmenTrigger(vr);
 vr = collectBehaviorIter_TMaze(vr);
+vr = updateVelVoltagePlot(vr);   % push current sample to the live voltage plot
 %vr = adjustFriction_dan(vr);
 vr = checkForManualReward(vr); % Deliver reward if 'r' key pressed
 vr = checkforTrialEndPosition_linearTrack(vr);

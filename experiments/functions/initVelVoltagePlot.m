@@ -21,6 +21,14 @@ function vr = initVelVoltagePlot(vr)
     vr.velPlot.idx = 0;
     vr.velPlot.t0  = tic;
 
+    % ---- reward markers ----
+    % Times (s, same clock as p.t) at which a reward was delivered. Detected
+    % in updateVelVoltagePlot by watching vr.numRewards increase. Drawn as
+    % scrolling vertical lines on all three panels.
+    vr.velPlot.rewT          = [];
+    vr.velPlot.lastNumReward = NaN;   % set on first update so old rewards aren't redrawn
+    vr.velPlot.rewColor      = [0.8 0 0.8];
+
     % ---- figure ----
     screenSize = get(0,'ScreenSize');
     figW = 700; figH = 560;
@@ -32,12 +40,14 @@ function vr = initVelVoltagePlot(vr)
     % panel 1: raw voltage
     ax1 = subplot(3,1,1, 'Parent', vr.velPlot.fig); hold(ax1,'on'); box(ax1,'on');
     vr.velPlot.ax1  = ax1;
+    vr.velPlot.hRew1 = plot(ax1, nan, nan, '-', 'LineWidth', 1, ...
+        'Color', vr.velPlot.rewColor);   % reward markers (drawn first = behind trace)
     vr.velPlot.hRaw = plot(ax1, nan, nan, '-', 'LineWidth', 1, 'Color', [0 0.2 0.7]);
     vr.velPlot.hOff = yline(ax1, vr.velPlot.offset, '--', ...
         sprintf('offset = %.4f V', vr.velPlot.offset), ...
         'Color', [0.4 0.4 0.4], 'LabelHorizontalAlignment','left');
     ylabel(ax1, 'raw V (ai0)');
-    title(ax1, 'VEL\_P live voltage  (compare to NI MAX ai0)');
+    title(ax1, 'VEL\_P live voltage  (compare to NI MAX ai0)   {\color[rgb]{0.8 0 0.8}| = reward}');
     vr.velPlot.hTxt = text(ax1, 0.99, 0.06, '', 'Units','normalized', ...
         'HorizontalAlignment','right', 'VerticalAlignment','bottom', ...
         'FontName','monospaced', 'Color',[0.2 0.2 0.2]);
@@ -45,6 +55,7 @@ function vr = initVelVoltagePlot(vr)
     % panel 2: offset-subtracted
     ax2 = subplot(3,1,2, 'Parent', vr.velPlot.fig); hold(ax2,'on'); box(ax2,'on');
     vr.velPlot.ax2  = ax2;
+    vr.velPlot.hRew2 = plot(ax2, nan, nan, '-', 'LineWidth', 1, 'Color', vr.velPlot.rewColor);
     vr.velPlot.hSub = plot(ax2, nan, nan, '-', 'LineWidth', 1, 'Color', [0.85 0.3 0]);
     yline(ax2, 0, '-', 'Color', [0.6 0.6 0.6]);
     ylabel(ax2, 'V - offset');
@@ -53,6 +64,7 @@ function vr = initVelVoltagePlot(vr)
     % panel 3: VR forward velocity (movement)
     ax3 = subplot(3,1,3, 'Parent', vr.velPlot.fig); hold(ax3,'on'); box(ax3,'on');
     vr.velPlot.ax3  = ax3;
+    vr.velPlot.hRew3 = plot(ax3, nan, nan, '-', 'LineWidth', 1, 'Color', vr.velPlot.rewColor);
     vr.velPlot.hFwd = plot(ax3, nan, nan, '-', 'LineWidth', 1, 'Color', [0 0.5 0.2]);
     yline(ax3, 0, '-', 'Color', [0.6 0.6 0.6]);
     ylabel(ax3, 'fwd vel (vu/s)');
