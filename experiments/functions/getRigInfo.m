@@ -32,8 +32,8 @@ switch rigName
 
 
         % ball sensor offset
-        ops.ballSensorOffset = [1.6425, 1.647, 1.646]; % JEB - 2026-05-14
-        ops.forwardGain = -1110;
+        ops.ballSensorOffset = [1.6425, 1.647, 1.646]; 
+        ops.forwardGain = -135;
         ops.forwardDeadband = 0.003; % volts; suppress resting +/-1-count jitter on data(1). Tune to just above resting noise.
         ops.viewAngleGain = 27;
         ops.sideGain = ops.forwardGain / 4;
@@ -43,7 +43,7 @@ switch rigName
         ops.useTeensyReward = true;
         ops.comPortTeensy = 'COM4';
         ops.rewardPulseDurationDict = containers.Map;
-        ops.rewardPulseDurationDict('4') = 0.055;
+        ops.rewardPulseDurationDict('4') = 0.045;
         ops.rewardPulseDurationDict('2') = 0.035;
         ops.rewardPulseDurationDict('7') = 0.075;
         ops.defaultRewardSize = '4';
@@ -51,7 +51,7 @@ switch rigName
         %         ops.defaultMaxNumRewards = '200';
 
         % base data directory settings
-        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\TestDataDir';
+        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\Data';
 
     case 'GreenLab_Behavior_rig2'
         ops.rigName = rigName;
@@ -63,7 +63,7 @@ switch rigName
 
 
         % ball sensor offset
-        ops.ballSensorOffset = [1.633, 1.647, 1.646]; % JEB - 2026-05-14
+        ops.ballSensorOffset = [1.618, 1.647, 1.646]; % JEB - 2026-05-14
         ops.forwardGain = -135;
         ops.forwardDeadband = 0.003; % volts; suppress resting +/-1-count jitter on data(1). Tune to just above resting noise.
         ops.viewAngleGain = 27;
@@ -74,7 +74,7 @@ switch rigName
         ops.useTeensyReward = true;
         ops.comPortTeensy = 'COM5';
         ops.rewardPulseDurationDict = containers.Map;
-        ops.rewardPulseDurationDict('4') = 0.055;
+        ops.rewardPulseDurationDict('4') = 0.045;
         ops.rewardPulseDurationDict('2') = 0.035;
         ops.rewardPulseDurationDict('7') = 0.075;
         ops.defaultRewardSize = '4';
@@ -82,7 +82,7 @@ switch rigName
         %         ops.defaultMaxNumRewards = '200';
 
         % base data directory settings
-        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\TestDataDir';
+        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\Data';
 
 
     case '0' % try to find name automatically
