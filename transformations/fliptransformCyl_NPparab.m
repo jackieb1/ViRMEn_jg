@@ -39,6 +39,7 @@ x = x.*xSign;
 % x = max([x; x2]).*xSign;
 x(x<-20) = -20;
 x(x>20) = 20;
+x = x + 0;
 
 y = a.*x.^2;
 
