@@ -389,9 +389,8 @@ end
 disp(['Ran ' num2str(vr.iterations-1) ' iterations in ' num2str(vr.timeElapsed,4) ...
     ' s (' num2str(vr.timeElapsed*1000/(vr.iterations-1),3) ' ms/frame refresh time).']);
 
-% Close the window used by ViRMEn first, so any termination-time UI (e.g. the
-% performance-to-Excel prompt) appears only after the ViRMEn session window has
-% closed.
+% Close the window used by ViRMEn first, so the termination code and the
+% performance-to-Excel prompt below run after the session window has closed.
 drawnow;
 virmenOpenGLRoutines(2);
 
@@ -403,4 +402,18 @@ catch ME
     err.message = ME.message;
     err.stack = ME.stack(1:end-1);
     return
+end
+
+% Auto-log this session's performance to the behavior-tracking spreadsheet for
+% linear-track / wide-linear-track mazes (prompts for the workbook + weight).
+% Centralized here so every such maze is covered without editing each experiment.
+% Wrapped in try/catch so a logging issue can never affect the ViRMEn run.
+try
+    mazeName = '';
+    try, mazeName = vr.exper.name; catch, end
+    if ischar(mazeName) && (startsWith(lower(mazeName), 'lineartrack') || ...
+                            startsWith(lower(mazeName), 'widelineartrack'))
+        writePerformanceToExcel(vr);
+    end
+catch
 end

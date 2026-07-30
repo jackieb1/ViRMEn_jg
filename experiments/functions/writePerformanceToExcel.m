@@ -177,7 +177,11 @@ function metrics = gatherMetrics(vr, weightVal)
         {'Time (min)', 'Trials', 'Rewards', 'Trials/min', 'Rewards/min', ...
          '% Correct', 'Fraction Right'});
 
-    txt = findall(vr.performanceFig, 'Type', 'text');
+    % read the stats text objects (tolerate mazes with no / a closed figure)
+    txt = [];
+    if isfield(vr, 'performanceFig')
+        try, txt = findall(vr.performanceFig, 'Type', 'text'); catch, end
+    end
     for i = 1:numel(txt)
         s = txt(i).String;
         if iscell(s)
