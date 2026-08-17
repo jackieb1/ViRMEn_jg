@@ -28,6 +28,9 @@ function vr = initializationCodeFun(vr)
     vr.ops = getRigInfo();
     vr = makeVirmenDir(vr);
     vr = initDAQ(vr);
+%%%%%%%%%%%%%JEB%%%%%%%%%%%%%%%%%%%%%%%
+    vr = initLickPlot(vr);           % live ai3 lick + reward-timing plot (must be after initDAQ)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     vr = initLivePlots_linearMaze(vr);
     
     % Initialize maze
@@ -63,6 +66,10 @@ function vr = runtimeCodeFun(vr)
         vr = giveRecordProbReward(vr, vr.correctRewardProbability);
         vr.lastRewardLocation = vr.position(2);
     end
+
+    %%%%%%%%JEB%%%%%%%%%%%%%%
+    vr = updateLickPlot(vr);   % push current ai3 sample + reward markers to the live lick plot
+    %%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
