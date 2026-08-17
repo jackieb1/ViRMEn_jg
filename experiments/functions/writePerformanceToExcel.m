@@ -1,4 +1,4 @@
-function vr = writePerformanceToExcel(vr, xlsFile)
+function vr = writePerformanceToExcel(vr, xlsFile, weightVal)
 % writePerformanceToExcel  Write this session's performance metrics into the
 % behavior-tracking spreadsheet.
 %
@@ -22,8 +22,9 @@ function vr = writePerformanceToExcel(vr, xlsFile)
     if isempty(lastDir)
         lastDir = pwd;
     end
+    if nargin < 3, weightVal = []; end   % [] -> prompt (interactive path) or leave blank
 
-    % ---- 1. Pick the spreadsheet ----------------------------------------
+    % ---- 1. Pick the spreadsheet, then ask for the day's weight ---------
     if nargin < 2 || isempty(xlsFile)
         [fname, fpath] = uigetfile({'*.xlsx;*.xlsm', 'Excel workbook (*.xlsx, *.xlsm)'}, ...
             'Select behavior-tracking spreadsheet', lastDir);
@@ -34,13 +35,20 @@ function vr = writePerformanceToExcel(vr, xlsFile)
         end
         lastDir = fpath;
         xlsFile = fullfile(fpath, fname);
+
+        % prompt for the mouse's weight for the day (populates the Weight column)
+        wans = inputdlg({'Mouse weight for today (g):'}, 'Enter weight', [1 40], {''});
+        if ~isempty(wans)
+            w = str2double(strtrim(wans{1}));
+            if ~isnan(w), weightVal = w; end
+        end
     end
 
     % ---- 2-6. Gather metrics and write to Excel via COM -----------------
     Excel = [];
     wb = [];
     try
-        metrics = gatherMetrics(vr);   % containers.Map: Excel header -> value
+        metrics = gatherMetrics(vr, weightVal);   % containers.Map: Excel header -> value
 
         Excel = actxserver('Excel.Application');
         Excel.DisplayAlerts = false;
@@ -155,9 +163,11 @@ end
 
 % ======================================================================
 
-function metrics = gatherMetrics(vr)
+function metrics = gatherMetrics(vr, weightVal)
 % Read the "Performance Stats" text objects from the performance figure and map
-% each to its Excel column header. Also add Maze name and Rig.
+% each to its Excel column header. Also add Maze name, Rig, Reward Size and the
+% day's Weight.
+    if nargin < 2, weightVal = []; end
     metrics = containers.Map('KeyType', 'char', 'ValueType', 'any');
 
     % stat label on the plot -> Excel column header
@@ -167,7 +177,11 @@ function metrics = gatherMetrics(vr)
         {'Time (min)', 'Trials', 'Rewards', 'Trials/min', 'Rewards/min', ...
          '% Correct', 'Fraction Right'});
 
-    txt = findall(vr.performanceFig, 'Type', 'text');
+    % read the stats text objects (tolerate mazes with no / a closed figure)
+    txt = [];
+    if isfield(vr, 'performanceFig')
+        try, txt = findall(vr.performanceFig, 'Type', 'text'); catch, end
+    end
     for i = 1:numel(txt)
         s = txt(i).String;
         if iscell(s)
@@ -206,6 +220,19 @@ function metrics = gatherMetrics(vr)
     r = rigNumber(vr);
     if ~isempty(r)
         metrics('Rig') = r;
+    end
+
+    % Reward size for the session (vr.rewardSize is a char key in uL, e.g. '4')
+    if isfield(vr, 'rewardSize')
+        rs = str2double(vr.rewardSize);
+        if ~isnan(rs)
+            metrics('Reward Size') = rs;
+        end
+    end
+
+    % Day's weight (entered via the prompt); leave blank if not provided
+    if ~isempty(weightVal) && isnumeric(weightVal) && ~isnan(weightVal)
+        metrics('Weight') = weightVal;
     end
 end
 
@@ -251,8 +278,28 @@ function col = lookupCol(colOf, header)
     key = normalizeHeader(header);
     if isKey(colOf, key)
         col = colOf(key);
-    else
-        col = NaN;
+        return
+    end
+    % Tolerant matching for headers that carry units / line breaks
+    % (e.g. "Weight\n(g)", "Reward\nSize (uL)") which won't match exactly.
+    ks = keys(colOf);
+    switch key
+        case 'weight'
+            col = firstMatch(colOf, ks, @(k) startsWith(k, 'weight'));
+        case 'reward size'
+            col = firstMatch(colOf, ks, @(k) startsWith(strrep(k, ' ', ''), 'rewardsize'));
+        otherwise
+            col = NaN;
+    end
+end
+
+function col = firstMatch(colOf, ks, pred)
+    col = NaN;
+    for i = 1:numel(ks)
+        if pred(ks{i})
+            col = colOf(ks{i});
+            return
+        end
     end
 end
 
@@ -293,15 +340,28 @@ function d = parseDateColumn(v)
 end
 
 function insertRowBelow(sheet, aboveRow, nCols)
-% Insert a blank row immediately below aboveRow, copying its formats so the new
-% row keeps the sheet's styling.
+% Insert a blank row immediately below aboveRow, carrying down the row's cell
+% FORMATS and any FORMULAS (so derived columns like PercentBaseline / Total
+% water keep computing) -- but NOT literal values, so manual and per-session
+% columns start blank.
     newRow = aboveRow + 1;
     sheet.Range([num2str(newRow) ':' num2str(newRow)]).Insert();
+
+    % copy formatting from the row above
     src = sheet.Range([a1(aboveRow, 1) ':' a1(aboveRow, nCols)]);
     dst = sheet.Range([a1(newRow, 1)  ':' a1(newRow, nCols)]);
     src.Copy();
     dst.PasteSpecial(-4122);   % xlPasteFormats
     sheet.Application.CutCopyMode = false;
+
+    % carry down formula cells only (R1C1 keeps relative references correct);
+    % literal-value cells are left blank
+    for c = 1:nCols
+        srcCell = sheet.Range(a1(aboveRow, c));
+        if srcCell.HasFormula
+            sheet.Range(a1(newRow, c)).FormulaR1C1 = srcCell.FormulaR1C1;
+        end
+    end
 end
 
 function setCell(sheet, row, col, value)

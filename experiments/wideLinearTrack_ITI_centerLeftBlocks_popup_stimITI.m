@@ -120,7 +120,6 @@ function vr = terminationCodeFun(vr)
     vr.ao.outputSingleScan(0);
     savefig(vr.performanceFig, fullfile(vr.fullPath, 'performance.fig'));
     saveas(vr.performanceFig, fullfile(vr.fullPath, 'performance.pdf'));
-    vr = writePerformanceToExcel(vr);
     vr = clearAnalogChannels(vr);
     if vr.numTrials > 0
         [vr,sessionData] = collectTrialData(vr);
