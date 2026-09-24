@@ -23,11 +23,26 @@ if vr.numTrials>0
         experData = vr.exper;
         experName = experData.name;
         ops = vr.ops;
-        rewardSize        = vr.rewardSize;                                  % session reward size key, e.g. '6'
-        rewardDurationSec = vr.ops.rewardPulseDurationDict(vr.rewardSize);  % calibrated duration, e.g. 0.075
         numRewards        = vr.numRewards;
-        save(sessionDataName,'sessionData','experData', 'experName', 'ops', ...
-            'rewardSize', 'rewardDurationSec', 'numRewards'),
+        saveVars = {'sessionData','experData','experName','ops', ...
+                    'rewardSize','rewardDurationSec','numRewards'};
+        if isfield(vr,'trialRewardSize')
+            % Variable-size / omission reward task: a single session size and duration
+            % are meaningless, so archive the per-trial record instead.
+            rewardSize         = 'variable';
+            rewardDurationSec  = NaN;
+            trialRewardSize    = vr.trialRewardSize;     % ul per trial (0 = omission, NaN = not reached)
+            trialRewardOmitted = vr.trialRewardOmitted;  % 1 = omitted, 0 = rewarded, NaN = not reached
+            rewardParams       = vr.rewardParams;
+            totalRewardVolume  = vr.totalRewardVolume;
+            numOmissions       = vr.numOmissions;
+            saveVars = [saveVars {'trialRewardSize','trialRewardOmitted', ...
+                                  'rewardParams','totalRewardVolume','numOmissions'}];
+        else
+            rewardSize        = vr.rewardSize;                                  % session reward size key, e.g. '6'
+            rewardDurationSec = vr.ops.rewardPulseDurationDict(vr.rewardSize);  % calibrated duration, e.g. 0.075
+        end
+        save(sessionDataName, saveVars{:}),
 
         % --- Verify sessionData.mat against the trial files, then delete them.
         % Two gates must pass before any deletion: (1) the trial count in the
