@@ -1,8 +1,15 @@
-function [vr] = giveReward(vr,nRew)
-%giveReward Function which delivers rewards 
+function [vr] = giveReward(vr,nRew,varargin)
+%giveReward Function which delivers rewards
 %(instantaneous pulses)
 %   nRew - number of rewards to deliver
-disp(['Giving reward number ', num2str(vr.numRewards)]);
+%   varargin{1} - optional reward size in ul. Tasks that vary reward size within a
+%                 session pass it so the printout says which size was delivered.
+if nargin >= 3 && ~isempty(varargin{1})
+    disp(['Giving reward number ', num2str(vr.numRewards), ...
+          ' - size ', num2str(varargin{1}), ' ul']);
+else
+    disp(['Giving reward number ', num2str(vr.numRewards)]);
+end
 
 for i=1:nRew
     
