@@ -11,6 +11,8 @@ function [vr] = giveRecordVarReward(vr)
 %     row  9 : 1 = a reward pulse fired, 0 = reward omitted (unchanged meaning)
 %     row 15 : reward size in ul, 0 on an omission, NaN on every other iteration
 
+    % Pick one random number (btw 0 and 1) to decide whether the trial is
+    % reward omission or a rewarded trial
     if rand < vr.rewardOmissionFraction
         vr.numOmissions           = vr.numOmissions + 1;
         vr.thisTrialRewardSize    = 0;
@@ -18,6 +20,9 @@ function [vr] = giveRecordVarReward(vr)
         vr.behaviorData(9,  vr.trialIterations) = 0;
         vr.behaviorData(15, vr.trialIterations) = 0;
         disp(['Reward omission ', num2str(vr.numOmissions)]);
+    
+    % If it is not a reward omission trial, pick a new random number so
+    % that you can assign reward size 
     else
         idx    = find(rand <= cumsum(vr.rewardSizeProbs), 1, 'first');
         if isempty(idx)
