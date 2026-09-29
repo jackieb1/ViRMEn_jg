@@ -45,9 +45,11 @@ function vr = updateLickPlot(vr)
     end
 
     % ---- detect reward omission (vr.numOmissions rising edge) ----
-    % Only tasks with reward omission maintain this counter; every other experiment
-    % skips this block and the omission line stays empty.
-    if isfield(vr, 'numOmissions') && ~isempty(vr.numOmissions)
+    % Only tasks with reward omission set up the omission line in initLickPlot; every
+    % other experiment skips this entirely and its plot is unchanged.
+    showOmissions = isfield(p, 'showOmissions') && p.showOmissions && ...
+                    isfield(vr, 'numOmissions') && ~isempty(vr.numOmissions);
+    if showOmissions
         no = vr.numOmissions;
         if isnan(p.lastNumOmissions)
             p.lastNumOmissions = no;       % baseline: don't redraw pre-existing omissions
@@ -55,9 +57,9 @@ function vr = updateLickPlot(vr)
             p.omitT(end+1) = tnow;
             p.lastNumOmissions = no;
         end
-    end
-    if ~isempty(p.omitT)
-        p.omitT = p.omitT(p.omitT >= (tnow - p.windowSec));
+        if ~isempty(p.omitT)
+            p.omitT = p.omitT(p.omitT >= (tnow - p.windowSec));   % keep the visible window
+        end
     end
 
     % ---- visible window ----
@@ -82,10 +84,12 @@ function vr = updateLickPlot(vr)
     yl = ylim(p.ax);
     [rx, ry] = local_vlines(p.rewT, yl);
     set(p.hRew, 'XData', rx, 'YData', ry);
-    [ox, oy] = local_vlines(p.omitT, yl);
-    set(p.hOmit, 'XData', ox, 'YData', oy);
+    if showOmissions
+        [ox, oy] = local_vlines(p.omitT, yl);
+        set(p.hOmit, 'XData', ox, 'YData', oy);
+    end
 
-    if isfield(vr, 'numOmissions') && ~isempty(vr.numOmissions)
+    if showOmissions
         set(p.hTxt, 'String', sprintf('ai3 = %.3f V  rew=%d  omit=%d', ...
             raw, local_rewardCount(vr), vr.numOmissions));
     else

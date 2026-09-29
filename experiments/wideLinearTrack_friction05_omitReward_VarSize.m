@@ -24,6 +24,21 @@ function vr = initializationCodeFun(vr)
     vr.debugMode = false;
     vr.ops = getRigInfo();
     vr = makeVirmenDir(vr);
+
+    % Reward omission / variable size. Set up before the plots: initLickPlot keys off
+    % vr.numOmissions to decide whether to draw the omission line and name it in the
+    % title, and this also puts both startup dialogs before the hardware spins up.
+    vr = getVarRewardParams(vr);      % .mat defaults -> dialog -> validation
+    vr.totalRewardVolume = 0;         % ul actually delivered this session
+    vr.numOmissions      = 0;
+    vr.trialRewardSize    = [];       % per trial: ul delivered (0 = omission, NaN = tower not reached)
+    vr.trialRewardOmitted = [];       % per trial: 1 = omitted, 0 = rewarded, NaN = not reached
+    vr.thisTrialRewardSize    = NaN;
+    vr.thisTrialRewardOmitted = NaN;
+    if ~isfield(vr,'maxRewardVolume') || isempty(vr.maxRewardVolume)
+        vr.maxRewardVolume = str2double(vr.ops.defaultMaxRewardVolume);  % debugMode fallback
+    end
+
     vr = initDAQ(vr);
     vr = initLickPlot(vr);           % live ai3 lick + reward-timing plot (must be after initDAQ)
     vr = initLivePlots_wideLinearTrack(vr);
@@ -41,18 +56,6 @@ function vr = initializationCodeFun(vr)
     vr.frictionDecay = 0.05;
     vr.dpGain = 1;
     vr.sideOffset = 0;
-
-    % Reward omission / variable size
-    vr = getVarRewardParams(vr);      % .mat defaults -> dialog -> validation
-    vr.totalRewardVolume = 0;         % ul actually delivered this session
-    vr.numOmissions      = 0;
-    vr.trialRewardSize    = [];       % per trial: ul delivered (0 = omission, NaN = tower not reached)
-    vr.trialRewardOmitted = [];       % per trial: 1 = omitted, 0 = rewarded, NaN = not reached
-    vr.thisTrialRewardSize    = NaN;
-    vr.thisTrialRewardOmitted = NaN;
-    if ~isfield(vr,'maxRewardVolume') || isempty(vr.maxRewardVolume)
-        vr.maxRewardVolume = str2double(vr.ops.defaultMaxRewardVolume);  % debugMode fallback
-    end
 
 % --- RUNTIME code: executes on every iteration of the ViRMEn engine.
 function vr = runtimeCodeFun(vr)

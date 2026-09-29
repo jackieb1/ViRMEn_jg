@@ -30,11 +30,16 @@ function vr = initLickPlot(vr)
     vr.lickPlot.rewColor      = [0.8 0 0.8];
 
     % ---- omission markers ----
-    % Only drawn for tasks that maintain vr.numOmissions (the omission / variable-size
-    % reward task). Detected in updateLickPlot the same way as rewards.
-    vr.lickPlot.omitT            = [];
-    vr.lickPlot.lastNumOmissions = NaN;
-    vr.lickPlot.omitColor        = [0.9 0.5 0];
+    % Only set up for tasks that maintain vr.numOmissions (the omission / variable-size
+    % reward task), detected in updateLickPlot the same way as rewards. Every other
+    % experiment gets no omission line and no mention of omissions in the title, so its
+    % plot is exactly what it was before this was added.
+    vr.lickPlot.showOmissions = isfield(vr, 'numOmissions');
+    if vr.lickPlot.showOmissions
+        vr.lickPlot.omitT            = [];
+        vr.lickPlot.lastNumOmissions = NaN;
+        vr.lickPlot.omitColor        = [0.9 0.5 0];
+    end
 
     % ---- figure ----
     screenSize = get(0,'ScreenSize');
@@ -49,16 +54,21 @@ function vr = initLickPlot(vr)
     vr.lickPlot.ax   = ax;
     vr.lickPlot.hRew = plot(ax, nan, nan, '-', 'LineWidth', 1, ...
         'Color', vr.lickPlot.rewColor);   % reward markers (drawn first = behind trace)
-    vr.lickPlot.hOmit = plot(ax, nan, nan, '--', 'LineWidth', 1, ...
-        'Color', vr.lickPlot.omitColor);  % omission markers
+    if vr.lickPlot.showOmissions
+        vr.lickPlot.hOmit = plot(ax, nan, nan, '--', 'LineWidth', 1, ...
+            'Color', vr.lickPlot.omitColor);  % omission markers (also behind trace)
+    end
     vr.lickPlot.hRaw = plot(ax, nan, nan, '-', 'LineWidth', 1, 'Color', [0 0.2 0.7]);
     yline(ax, vr.lickPlot.thresh, '--', ...
         sprintf('lick thresh = %.1f V', vr.lickPlot.thresh), ...
         'Color', [0.4 0.4 0.4], 'LabelHorizontalAlignment','left');
     ylabel(ax, 'ai3 (V)');
     xlabel(ax, 'time (s)');
-    title(ax, ['Lick sensor live voltage  (ai3)   {\color[rgb]{0.8 0 0.8}| = reward}' ...
-               '   {\color[rgb]{0.9 0.5 0}| = omission}']);
+    titleStr = 'Lick sensor live voltage  (ai3)   {\color[rgb]{0.8 0 0.8}| = reward}';
+    if vr.lickPlot.showOmissions
+        titleStr = [titleStr '   {\color[rgb]{0.9 0.5 0}| = omission}'];
+    end
+    title(ax, titleStr);
     ylim(ax, [-0.5 5.5]);
     vr.lickPlot.hTxt = text(ax, 0.99, 0.06, '', 'Units','normalized', ...
         'HorizontalAlignment','right', 'VerticalAlignment','bottom', ...

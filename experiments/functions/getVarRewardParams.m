@@ -28,8 +28,8 @@ function vr = getVarRewardParams(vr)
     end
 
     % ---- defaults: experiment variables when defined, else built-ins ----
-    defOmission = '0.3';
-    defSizes    = '[2 4 7]';
+    defOmission = '0.2';
+    defSizes    = '[2 4 8]';
     defProbs    = '[0.25 0.5 0.25]';
     try, defOmission = num2str(eval(vr.exper.variables.rewardOmissionFraction)); catch, end
     try, defSizes    = mat2str(eval(vr.exper.variables.rewardSizes));            catch, end
