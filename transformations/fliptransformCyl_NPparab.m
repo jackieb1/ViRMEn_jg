@@ -15,7 +15,8 @@ elev = atan2(coords3D(3,:),hypotxy);
 azimuth = atan2(coords3D(2,:),coords3D(1,:));
 
 % visible = ~(azimuth<-pi/4 & azimuth>(-pi + pi/4));
-visible = ~(azimuth<0 | azimuth>pi);
+margin = pi/4;
+visible = ~(azimuth < -margin & azimuth > -pi + margin);
 
 xSign = sign(coords3D(1,:));
 ySign = sign(coords3D(2,:));
@@ -63,6 +64,10 @@ blah = 16/9;
 %coords2D(1,:) = -((x.*(unknown./(-y+unknown)))./7.5).*blah;
 coords2D(1,:) = ((x.*(unknown./(-y+unknown)))./7.5).*blah;
 coords2D(2,:) = 1.*(heightOnScreen./projectedImageHeight);
-coords2D(2,coords2D(2,:)<-1) = -1;
+% coords2D(2,coords2D(2,:)<-1) = -1;
+elev = atan2(coords3D(3,:),hypotxy);
+elev = max(elev, -pi/2 + 1e-3);   % avoid tan(-pi/2) → Inf for points directly below
+coords2D(2,:) = heightOnScreen./projectedImageHeight;
+% (delete the  coords2D(2,coords2D(2,:)<-1) = -1;  line)
 %coords2D(1:2,:) = coords2D(1:2,:) * -1; % JG210222 flip x and y for optorig
 coords2D(3,:) = visible;
