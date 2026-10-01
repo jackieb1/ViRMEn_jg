@@ -30,18 +30,27 @@ function vr = updateLickPlot(vr)
     p.t(k) = tnow; p.v(k) = raw;
 
     % ---- detect reward delivery (vr.numRewards rising edge) ----
+    colorBySize = isfield(p, 'colorBySize') && p.colorBySize;
     if isfield(vr, 'numRewards') && ~isempty(vr.numRewards)
         nr = vr.numRewards;
         if isnan(p.lastNumReward)
             p.lastNumReward = nr;          % baseline: don't redraw pre-existing rewards
+            if colorBySize, p.lastRewVolume = vr.totalRewardVolume; end
         elseif nr > p.lastNumReward
             p.rewT(end+1) = tnow;          % new reward(s) delivered this iteration
+            if colorBySize
+                % size = volume added per reward this iteration (covers manual rewards too)
+                p.rewSize(end+1) = (vr.totalRewardVolume - p.lastRewVolume) / (nr - p.lastNumReward);
+                p.lastRewVolume  = vr.totalRewardVolume;
+            end
             p.lastNumReward = nr;
         end
     end
     % keep only rewards still inside the visible window
     if ~isempty(p.rewT)
-        p.rewT = p.rewT(p.rewT >= (tnow - p.windowSec));
+        keep = p.rewT >= (tnow - p.windowSec);
+        p.rewT = p.rewT(keep);
+        if colorBySize, p.rewSize = p.rewSize(keep); end
     end
 
     % ---- detect reward omission (vr.numOmissions rising edge) ----
@@ -59,6 +68,24 @@ function vr = updateLickPlot(vr)
         end
         if ~isempty(p.omitT)
             p.omitT = p.omitT(p.omitT >= (tnow - p.windowSec));   % keep the visible window
+        end
+    end
+
+    % ---- detect unexpected reward (vr.numUnexpectedRewards rising edge) ----
+    % Only the unexpected-reward task sets up this line in initLickPlot; every other
+    % experiment skips this entirely and its plot is unchanged.
+    showUnexpected = isfield(p, 'showUnexpected') && p.showUnexpected && ...
+                     isfield(vr, 'numUnexpectedRewards') && ~isempty(vr.numUnexpectedRewards);
+    if showUnexpected
+        nu = vr.numUnexpectedRewards;
+        if isnan(p.lastNumUnexpected)
+            p.lastNumUnexpected = nu;      % baseline: don't redraw pre-existing rewards
+        elseif nu > p.lastNumUnexpected
+            p.unexpT(end+1) = tnow;
+            p.lastNumUnexpected = nu;
+        end
+        if ~isempty(p.unexpT)
+            p.unexpT = p.unexpT(p.unexpT >= (tnow - p.windowSec));   % keep the visible window
         end
     end
 
@@ -82,19 +109,36 @@ function vr = updateLickPlot(vr)
 
     % ---- reward / omission markers (scrolling vertical lines) ----
     yl = ylim(p.ax);
-    [rx, ry] = local_vlines(p.rewT, yl);
+    if colorBySize
+        matched = false(size(p.rewT));
+        for k = 1:numel(p.sizeVals)
+            isK = abs(p.rewSize - p.sizeVals(k)) < 1e-6;
+            matched = matched | isK;
+            [rx, ry] = local_vlines(p.rewT(isK), yl);
+            set(p.hRewSize(k), 'XData', rx, 'YData', ry);
+        end
+        [rx, ry] = local_vlines(p.rewT(~matched), yl);   % sizes outside the set
+    else
+        [rx, ry] = local_vlines(p.rewT, yl);
+    end
     set(p.hRew, 'XData', rx, 'YData', ry);
     if showOmissions
         [ox, oy] = local_vlines(p.omitT, yl);
         set(p.hOmit, 'XData', ox, 'YData', oy);
     end
-
-    if showOmissions
-        set(p.hTxt, 'String', sprintf('ai3 = %.3f V  rew=%d  omit=%d', ...
-            raw, local_rewardCount(vr), vr.numOmissions));
-    else
-        set(p.hTxt, 'String', sprintf('ai3 = %.3f V  rew=%d', raw, local_rewardCount(vr)));
+    if showUnexpected
+        [ux, uy] = local_vlines(p.unexpT, yl);
+        set(p.hUnexp, 'XData', ux, 'YData', uy);
     end
+
+    txt = sprintf('ai3 = %.3f V  rew=%d', raw, local_rewardCount(vr));
+    if showOmissions
+        txt = [txt sprintf('  omit=%d', vr.numOmissions)];
+    end
+    if showUnexpected
+        txt = [txt sprintf('  unexp=%d', vr.numUnexpectedRewards)];
+    end
+    set(p.hTxt, 'String', txt);
 
     vr.lickPlot = p;
     drawnow limitrate;

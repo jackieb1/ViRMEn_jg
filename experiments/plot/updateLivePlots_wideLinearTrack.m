@@ -53,6 +53,30 @@ function vr = updateLivePlots_wideLinearTrack(vr)
         end
         text(0, -8, sprintf('%s| %g/%g ul', sizeStr, vr.totalRewardVolume, vr.maxRewardVolume))
     end
+
+    % Unexpected-reward task only. "Rewards" above counts tower/manual rewards only;
+    % unexpected rewards are listed separately here. Like the omission lines, these
+    % labels are not in writePerformanceToExcel's map, so they are display-only.
+    if isfield(vr, 'numUnexpectedRewards')
+        yNext = -7;
+        if isfield(vr, 'numOmissions'), yNext = -9; end   % below the omission lines
+        ylim([yNext-2 1]);
+        nT = numel(vr.trialUnexpected);
+        if nT > 0
+            pctUnexp = 100 * sum(vr.trialUnexpected == 1) / nT;
+        else
+            pctUnexp = 0;
+        end
+        text(0, yNext, sprintf('Unexpected rew: %d (%.1f%% of trials)', ...
+            vr.numUnexpectedRewards, pctUnexp))
+        locStr = '';
+        for k = 1:vr.unexpectedRewardNumLocations
+            y = vr.unexpectedRewardYLocations(k);
+            locStr = [locStr sprintf('y%g:%d ', y, ...
+                sum(vr.trialUnexpectedYLocation(vr.trialUnexpectedDelivered == 1) == y))]; %#ok<AGROW>
+        end
+        text(0, yNext-1, strtrim(locStr))
+    end
 %     set(gca,'visible','off')
 end
 

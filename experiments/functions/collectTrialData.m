@@ -42,6 +42,18 @@ if vr.numTrials>0
             rewardSize        = vr.rewardSize;                                  % session reward size key, e.g. '6'
             rewardDurationSec = vr.ops.rewardPulseDurationDict(vr.rewardSize);  % calibrated duration, e.g. 0.075
         end
+        if isfield(vr,'unexpectedRewardParams')
+            % Unexpected-reward task: session parameters plus the per-trial record.
+            % numRewards above counts tower/manual rewards only.
+            unexpectedRewardParams         = vr.unexpectedRewardParams;
+            trialUnexpectedReward          = vr.trialUnexpected;           % 1 = unexpected-reward trial
+            trialUnexpectedRewardYLocation = vr.trialUnexpectedYLocation;  % y-location (NaN if none)
+            trialUnexpectedRewardDelivered = vr.trialUnexpectedDelivered;  % 1 = reward fired
+            numUnexpectedRewards           = vr.numUnexpectedRewards;
+            saveVars = [saveVars {'unexpectedRewardParams','trialUnexpectedReward', ...
+                                  'trialUnexpectedRewardYLocation','trialUnexpectedRewardDelivered', ...
+                                  'numUnexpectedRewards'}];
+        end
         save(sessionDataName, saveVars{:}),
 
         % --- Verify sessionData.mat against the trial files, then delete them.
