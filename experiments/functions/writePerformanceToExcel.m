@@ -1,63 +1,60 @@
-function vr = writePerformanceToExcel(vr, xlsFile, weightVal)
+function vr = writePerformanceToExcel(vr, xlsFile)
 % writePerformanceToExcel  Write this session's performance metrics into the
-% behavior-tracking spreadsheet.
+% animal's behavior-tracking spreadsheet on SharePoint.
 %
-% At session end this prompts the user to pick the tracking .xlsx, then writes
-% the values shown on the performance figure (vr.performanceFig) into the sheet
-% for this animal (vr.mouseNum) on a row for this session. Sessions get one row
-% each, ordered by session number within the date (session_1 = first row for
-% the date, session_2 = second, ...).
+% At session end this looks the animal (vr.mouseNum) up in the master workbook
+% Tracking_Log_FilenameSpreadsheet in the SharePoint "Training Logs" folder
+% (vr.ops.trainingLogURL, set in getRigInfo.m). Each person has a sheet there with
+% animal IDs in column A and the name of that animal's Tracking_Log_<Name> workbook
+% (in the same folder) in column B. That workbook is opened and the values shown
+% on the performance figure (vr.performanceFig) are written into the sheet for this
+% animal on a row for this session. Sessions get one row each, ordered by session
+% number within the date (session_1 = first row for the date, session_2 = second, ...).
+%
+% After saving, the workbook is re-opened read-only and the written cells are read
+% back; a popup confirms success (or reports what went wrong).
 %
 % Values are read maze-agnostically from the "Performance Stats" text objects on
 % the figure, so this works for wideLinearTrack, T-maze and linear-maze variants
 % without per-maze code -- it only writes metrics that have a matching column.
 %
 % Uses Excel COM automation so the workbook's existing formatting and formula
-% columns are preserved.
+% columns are preserved. Excel on the rig must be signed in to the org account
+% so it can open the SharePoint URLs.
 %
-% Optional second argument xlsFile bypasses the file-picker dialog (useful for
-% testing / batch use).
+% Optional second argument xlsFile (local path or URL) bypasses the master-sheet
+% lookup (useful for testing / batch use).
 
-    persistent lastDir
-    if isempty(lastDir)
-        lastDir = pwd;
-    end
-    if nargin < 3, weightVal = []; end   % [] -> prompt (interactive path) or leave blank
+    if nargin < 2, xlsFile = ''; end
 
-    % ---- 1. Pick the spreadsheet, then ask for the day's weight ---------
-    if nargin < 2 || isempty(xlsFile)
-        [fname, fpath] = uigetfile({'*.xlsx;*.xlsm', 'Excel workbook (*.xlsx, *.xlsm)'}, ...
-            'Select behavior-tracking spreadsheet', lastDir);
-        if isequal(fname, 0)
-            warning('writePerformanceToExcel:cancelled', ...
-                'No spreadsheet selected -- performance metrics were not saved to Excel.');
-            return
-        end
-        lastDir = fpath;
-        xlsFile = fullfile(fpath, fname);
-
-        % prompt for the mouse's weight for the day (populates the Weight column)
-        wans = inputdlg({'Mouse weight for today (g):'}, 'Enter weight', [1 40], {''});
-        if ~isempty(wans)
-            w = str2double(strtrim(wans{1}));
-            if ~isnan(w), weightVal = w; end
-        end
-    end
-
-    % ---- 2-6. Gather metrics and write to Excel via COM -----------------
     Excel = [];
     wb = [];
     try
-        metrics = gatherMetrics(vr, weightVal);   % containers.Map: Excel header -> value
+        metrics = gatherMetrics(vr);   % containers.Map: Excel header -> value
 
         Excel = actxserver('Excel.Application');
         Excel.DisplayAlerts = false;
+
+        % ---- 1. Find this animal's tracking workbook ---------------------
+        if isempty(xlsFile)
+            if ~isfield(vr, 'ops') || ~isfield(vr.ops, 'trainingLogURL') || isempty(vr.ops.trainingLogURL)
+                error('writePerformanceToExcel:noURL', ...
+                    'ops.trainingLogURL is not set for this rig (see getRigInfo.m).');
+            end
+            xlsFile = resolveTrackingLog(Excel, vr.ops.trainingLogURL, vr.mouseNum);
+        end
+
         wb = Excel.Workbooks.Open(xlsFile);
+        if wb.ReadOnly
+            error('writePerformanceToExcel:readOnly', ...
+                ['%s opened read-only, so it cannot be saved. Is it open/locked by ' ...
+                 'someone else, or is Excel not signed in to SharePoint?'], xlsFile);
+        end
 
         sheet = findAnimalSheet(wb, vr.mouseNum);
         if isempty(sheet)
             error('writePerformanceToExcel:noSheet', ...
-                'No sheet selected for animal "%s".', vr.mouseNum);
+                'No sheet selected for animal "%s".', idString(vr.mouseNum));
         end
 
         used   = sheet.UsedRange;
@@ -126,11 +123,15 @@ function vr = writePerformanceToExcel(vr, xlsFile, weightVal)
             newRow = true;
         end
 
+        % cells written this session, for read-back verification: {col, value, label}
+        written = cell(0, 3);
+
         % stamp the date on a freshly created row
         if newRow
             excelSerial = targetDatenum - datenum(1899, 12, 30);
             setCell(sheet, targetRow, dateCol, excelSerial);
             sheet.Range(a1(targetRow, dateCol)).NumberFormat = 'm/d/yyyy';
+            written(end+1, :) = {dateCol, excelSerial, 'Date'};
         end
 
         % ---- write metric cells ------------------------------------------
@@ -141,33 +142,162 @@ function vr = writePerformanceToExcel(vr, xlsFile, weightVal)
             col = lookupCol(colOf, hdr);
             if isnan(col), continue, end    % this workbook has no such column
             setCell(sheet, targetRow, col, metrics(hdr));
+            written(end+1, :) = {col, metrics(hdr), hdr}; %#ok<AGROW>
         end
 
         sheetName = char(sheet.Name);
         wb.Save();
         wb.Close(false);
+        wb = [];
+
+        % ---- 2. Re-open read-only and verify what was saved ---------------
+        verifyWritten(Excel, xlsFile, sheetName, targetRow, written);
+
         Excel.Quit();
         delete(Excel);
-        fprintf('Performance metrics saved to %s (sheet "%s", row %d).\n', ...
-            xlsFile, sheetName, targetRow);
+        Excel = [];
+
+        % ---- 3. Confirm -----------------------------------------------------
+        msg = successMessage(xlsFile, sheetName, targetRow, vr, written);
+        fprintf('%s\n', strjoin(msg, newline));
+        msgbox(msg, 'Session logged', 'help', 'non-modal');
 
     catch ME
         try, if ~isempty(wb),    wb.Close(false);              end, catch, end
         try, if ~isempty(Excel), Excel.Quit(); delete(Excel);  end, catch, end
-        warning('writePerformanceToExcel:failed', ...
-            ['Could not write to the spreadsheet (%s).\n' ...
-             'Is the file open in Excel? The performance.fig is still saved, ' ...
-             'so you can re-run later.\nDetails: %s'], xlsFile, ME.message);
+        if isempty(xlsFile), where = 'the tracking spreadsheet'; else, where = xlsFile; end
+        msg = sprintf(['Session performance was NOT saved to %s.\n\n%s\n\n' ...
+             'The performance.fig is still saved, so you can re-run ' ...
+             'writePerformanceToExcel(vr) later.'], where, ME.message);
+        warning('writePerformanceToExcel:failed', '%s', msg);
+        errordlg(msg, 'Session NOT logged', 'non-modal');
     end
 end
 
 % ======================================================================
 
-function metrics = gatherMetrics(vr, weightVal)
+function xlsFile = resolveTrackingLog(Excel, baseURL, mouseNum)
+% Look mouseNum up in column A of every sheet of Tracking_Log_FilenameSpreadsheet
+% and return the URL of the workbook named in column B.
+    masterName = 'Tracking_Log_FilenameSpreadsheet.xlsx';
+    baseURL = normalizeBaseURL(baseURL);
+    mouseID = idString(mouseNum);
+
+    masterURL = [baseURL '/' masterName];
+    mwb = Excel.Workbooks.Open(masterURL, 0, true);   % read-only
+    files = {};
+    people = {};
+    try
+        for s = 1:mwb.Sheets.Count
+            sh = mwb.Sheets.Item(s);
+            used = sh.UsedRange;
+            lastRow = used.Row + used.Rows.Count - 1;
+            if lastRow < 2, continue, end
+            v = sh.Range(['A2:B' num2str(lastRow)]).Value;
+            if ~iscell(v), v = {v}; end
+            for r = 1:size(v, 1)
+                if ~isempty(mouseID) && strcmpi(idString(v{r, 1}), mouseID)
+                    f = idString(v{r, 2});
+                    if ~isempty(f)
+                        files{end+1} = f;                 %#ok<AGROW>
+                        people{end+1} = char(sh.Name);    %#ok<AGROW>
+                    end
+                end
+            end
+        end
+    catch ME
+        mwb.Close(false);
+        rethrow(ME);
+    end
+    mwb.Close(false);
+
+    if isempty(files)
+        error('writePerformanceToExcel:animalNotFound', ...
+            'Animal "%s" was not found in column A of any sheet of %s.', ...
+            idString(mouseNum), masterName);
+    end
+    if numel(unique(lower(files))) > 1
+        error('writePerformanceToExcel:animalAmbiguous', ...
+            'Animal "%s" is listed with different files in %s (sheets: %s; files: %s).', ...
+            idString(mouseNum), masterName, strjoin(people, ', '), strjoin(files, ', '));
+    end
+
+    fname = files{1};
+    if isempty(regexpi(fname, '\.xls[xm]?$', 'once'))
+        fname = [fname '.xlsx'];
+    end
+    xlsFile = [baseURL '/' strrep(fname, ' ', '%20')];
+end
+
+function u = normalizeBaseURL(u)
+% Tolerate a pasted "Copy path" (trailing filename, ?web=1, trailing slash, spaces).
+    u = strtrim(char(u));
+    u = regexprep(u, '\?.*$', '');
+    u = regexprep(u, '/[^/]*\.xls[xm]?$', '', 'ignorecase');
+    u = regexprep(u, '/+$', '');
+    u = strrep(u, ' ', '%20');
+end
+
+function s = idString(x)
+% Cell value / mouse ID as a trimmed char (numbers formatted without decimals noise).
+    if isnumeric(x) || islogical(x)
+        if isempty(x) || any(isnan(x)), s = ''; else, s = num2str(x, '%.15g'); end
+    elseif ischar(x) || isstring(x)
+        s = strtrim(char(x));
+    else
+        s = '';
+    end
+end
+
+function verifyWritten(Excel, xlsFile, sheetName, row, written)
+% Re-open the saved workbook read-only and check every written cell.
+    vwb = Excel.Workbooks.Open(xlsFile, 0, true);
+    bad = {};
+    try
+        sh = vwb.Sheets.Item(sheetName);
+        for i = 1:size(written, 1)
+            got  = sh.Range(a1(row, written{i, 1})).Value2;   % Value2: raw serial for dates
+            want = written{i, 2};
+            if isnumeric(want)
+                ok = isnumeric(got) && ~isempty(got) && abs(got - want) <= 1e-6 * max(1, abs(want));
+            else
+                ok = ischar(got) && strcmp(strtrim(got), strtrim(char(want)));
+            end
+            if ~ok
+                bad{end+1} = written{i, 3}; %#ok<AGROW>
+            end
+        end
+    catch ME
+        vwb.Close(false);
+        rethrow(ME);
+    end
+    vwb.Close(false);
+    if ~isempty(bad)
+        error('writePerformanceToExcel:verifyFailed', ...
+            'Saved file did not contain the expected values for: %s (sheet "%s", row %d).', ...
+            strjoin(bad, ', '), sheetName, row);
+    end
+end
+
+function msg = successMessage(xlsFile, sheetName, row, vr, written)
+    parts = regexp(xlsFile, '[\\/]', 'split');
+    fname = strrep(parts{end}, '%20', ' ');
+    sess = '';
+    if isfield(vr, 'sessionID'), sess = char(string(vr.sessionID)); end
+    msg = {sprintf('Saved and verified: %s', fname), ...
+           sprintf('Sheet "%s", row %d  (%s, %s)', sheetName, row, ...
+                   datestr(datenum(vr.date, 'yymmdd'), 'mm/dd/yyyy'), sess), ''};
+    for i = 1:size(written, 1)
+        if strcmp(written{i, 3}, 'Date'), continue, end
+        v = written{i, 2};
+        if isnumeric(v), v = num2str(v, '%.4g'); end
+        msg{end+1} = sprintf('%s: %s', written{i, 3}, v); %#ok<AGROW>
+    end
+end
+
+function metrics = gatherMetrics(vr)
 % Read the "Performance Stats" text objects from the performance figure and map
-% each to its Excel column header. Also add Maze name, Rig, Reward Size and the
-% day's Weight.
-    if nargin < 2, weightVal = []; end
+% each to its Excel column header. Also add Maze name, Rig and Reward Size.
     metrics = containers.Map('KeyType', 'char', 'ValueType', 'any');
 
     % stat label on the plot -> Excel column header
@@ -229,11 +359,6 @@ function metrics = gatherMetrics(vr, weightVal)
             metrics('Reward Size') = rs;
         end
     end
-
-    % Day's weight (entered via the prompt); leave blank if not provided
-    if ~isempty(weightVal) && isnumeric(weightVal) && ~isnan(weightVal)
-        metrics('Weight') = weightVal;
-    end
 end
 
 function n = rigNumber(vr)
@@ -248,16 +373,20 @@ function n = rigNumber(vr)
 end
 
 function sheet = findAnimalSheet(wb, mouseNum)
-% Worksheet whose name starts with mouseNum (case-insensitive); if none or
-% several match, ask the user to pick.
+% Worksheet named mouseNum (case-insensitive), else the one whose name starts
+% with mouseNum; if none or several match, ask the user to pick. The exact check
+% comes first so "JB1" isn't ambiguous with "JB10", "JB11", ...
     sheet = [];
-    mouseNum = char(string(mouseNum));
+    mouseNum = idString(mouseNum);
     n = wb.Sheets.Count;
     names = cell(1, n);
     for i = 1:n
         names{i} = char(wb.Sheets.Item(i).Name);
     end
-    hit = find(strncmpi(names, mouseNum, numel(mouseNum)));
+    hit = find(strcmpi(strtrim(names), mouseNum));
+    if isempty(hit)
+        hit = find(strncmpi(names, mouseNum, numel(mouseNum)));
+    end
     if numel(hit) == 1
         sheet = wb.Sheets.Item(hit);
         return
@@ -281,11 +410,9 @@ function col = lookupCol(colOf, header)
         return
     end
     % Tolerant matching for headers that carry units / line breaks
-    % (e.g. "Weight\n(g)", "Reward\nSize (uL)") which won't match exactly.
+    % (e.g. "Reward\nSize (uL)") which won't match exactly.
     ks = keys(colOf);
     switch key
-        case 'weight'
-            col = firstMatch(colOf, ks, @(k) startsWith(k, 'weight'));
         case 'reward size'
             col = firstMatch(colOf, ks, @(k) startsWith(strrep(k, ' ', ''), 'rewardsize'));
         otherwise

@@ -405,7 +405,8 @@ catch ME
 end
 
 % Auto-log this session's performance to the behavior-tracking spreadsheet for
-% linear-track / wide-linear-track mazes (prompts for the workbook + weight).
+% linear-track / wide-linear-track mazes (looks up the workbook from
+% Tracking_Log_FilenameSpreadsheet on SharePoint and pops up a confirmation).
 % Centralized here so every such maze is covered without editing each experiment.
 % Wrapped in try/catch so a logging issue can never affect the ViRMEn run.
 try
