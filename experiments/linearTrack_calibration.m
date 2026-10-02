@@ -14,9 +14,11 @@ code.termination = @terminationCodeFun;
 function vr = initializationCodeFun(vr)
 vr.debugMode = false;
 vr.ops = getRigInfo();
-% vr = makeVirmenDir(vr);
+vr = makeVirmenDir(vr);
 vr = initTMaze(vr);
 vr = initDAQ(vr);
+vr = initVelVoltagePlot(vr);     % live VEL_P voltage -> velocity plot (must be after initDAQ)
+vr.rewardSize = '4';
 % vr = initLivePlots_linearMaze(vr);
 
 % --- RUNTIME code: executes on every iteration of the ViRMEn engine.
@@ -31,8 +33,9 @@ end
 
 % vr = outputVirmenTrigger(vr);
 vr = collectBehaviorIter_TMaze(vr);
+vr = updateVelVoltagePlot(vr);   % push current sample to the live voltage plot
 %vr = adjustFriction_dan(vr);
-% vr = checkForManualReward(vr); % Deliver reward if 'r' key pressed
+vr = checkForManualReward(vr); % Deliver reward if 'r' key pressed
 vr = checkforTrialEndPosition_linearTrack(vr);
 vr = waitForNextTrial(vr);
 % vr = waitForNextTrial_linTrack(vr);
@@ -43,6 +46,7 @@ function vr = terminationCodeFun(vr)
 % saveas(vr.performanceFig, fullfile(vr.fullPath, 'performance.pdf'));
 vr = clearAnalogChannels(vr);
 % if vr.numTrials > 0
-%     [vr,sessionData] = collectTrialData(vr);
+    % [vr,sessionData] = collectTrialData(vr);
 % end
-% printSessionStats(vr);
+
+printSessionStats_linearMaze(vr);
