@@ -22,18 +22,34 @@ function vr = writePerformanceToExcel(vr, xlsFile)
 % columns are preserved. Excel on the rig must be signed in to the org account
 % so it can open the SharePoint URLs.
 %
+% If the tracking workbook is already open in Excel on this desktop, the row is
+% written into that open copy and saved (it is left open). Otherwise a hidden
+% Excel opens it. A second Excel process on the same machine can only get a
+% read-only copy of a workbook that's already open, which is why the open copy
+% is used directly.
+%
 % Optional second argument xlsFile (local path or URL) bypasses the master-sheet
 % lookup (useful for testing / batch use).
 
     if nargin < 2, xlsFile = ''; end
 
     Excel = [];
+    myPid = [];
     wb = [];
+    attached = false;   % true -> wb belongs to the user's Excel: never close it
     try
         metrics = gatherMetrics(vr);   % containers.Map: Excel header -> value
 
+        % grab the user's running Excel (if any) BEFORE starting our own, so we
+        % can't pick up our hidden instance by mistake
+        % while the user's Excel is busy (cell in edit mode / dialog open) every
+        % Excel automation call fails -- even on a brand-new hidden instance
+        userExcel = waitForUserExcel();
+
+        pidsBefore = excelPids();
         Excel = actxserver('Excel.Application');
-        Excel.DisplayAlerts = false;
+        myPid = setdiff(excelPids(), pidsBefore);   % our hidden instance, for cleanup
+        set(Excel, 'DisplayAlerts', false);
 
         % ---- 1. Find this animal's tracking workbook ---------------------
         if isempty(xlsFile)
@@ -44,18 +60,25 @@ function vr = writePerformanceToExcel(vr, xlsFile)
             xlsFile = resolveTrackingLog(Excel, vr.ops.trainingLogURL, vr.mouseNum);
         end
 
-        wb = Excel.Workbooks.Open(xlsFile);
+        wb = findOpenWorkbook(userExcel, xlsFile);
+        attached = ~isempty(wb);
+        if ~attached
+            wb = openWorkbook(Excel, xlsFile, false);
+        end
         if wb.ReadOnly
+            if attached
+                error('writePerformanceToExcel:readOnly', ...
+                    ['%s is open read-only in Excel on this computer. Close it (or click ' ...
+                     '"Enable Editing") and re-run.'], xlsFile);
+            end
             error('writePerformanceToExcel:readOnly', ...
-                ['%s opened read-only, so it cannot be saved. Is it open/locked by ' ...
-                 'someone else, or is Excel not signed in to SharePoint?'], xlsFile);
+                ['%s opened read-only, so it cannot be saved. It is probably open and ' ...
+                 'locked in another Excel (another computer with AutoSave off, or a ' ...
+                 'leftover hidden EXCEL.EXE in Task Manager), or Excel is not signed in ' ...
+                 'to SharePoint.'], xlsFile);
         end
 
         sheet = findAnimalSheet(wb, vr.mouseNum);
-        if isempty(sheet)
-            error('writePerformanceToExcel:noSheet', ...
-                'No sheet selected for animal "%s".', idString(vr.mouseNum));
-        end
 
         used   = sheet.UsedRange;
         nCols  = used.Columns.Count;
@@ -147,28 +170,46 @@ function vr = writePerformanceToExcel(vr, xlsFile)
 
         sheetName = char(sheet.Name);
         wb.Save();
-        wb.Close(false);
+        if ~wb.Saved
+            error('writePerformanceToExcel:notSaved', ...
+                'Excel reported the workbook still has unsaved changes after Save.');
+        end
+        if ~attached
+            wb.Close(false);
+        end
         wb = [];
 
         % ---- 2. Re-open read-only and verify what was saved ---------------
         verifyWritten(Excel, xlsFile, sheetName, targetRow, written);
 
-        Excel.Quit();
-        delete(Excel);
+        quitExcel(Excel, myPid);
         Excel = [];
 
         % ---- 3. Confirm -----------------------------------------------------
         msg = successMessage(xlsFile, sheetName, targetRow, vr, written);
+        if attached
+            msg{end+1} = '';
+            msg{end+1} = '(Written into the copy already open in Excel; it was left open.)';
+        end
         fprintf('%s\n', strjoin(msg, newline));
         msgbox(msg, 'Session logged', 'help', 'non-modal');
 
     catch ME
-        try, if ~isempty(wb),    wb.Close(false);              end, catch, end
-        try, if ~isempty(Excel), Excel.Quit(); delete(Excel);  end, catch, end
+        try, if ~isempty(wb) && ~attached, wb.Close(false);    end, catch, end
+        if ~isempty(Excel), quitExcel(Excel, myPid); end
         if isempty(xlsFile), where = 'the tracking spreadsheet'; else, where = xlsFile; end
+        reason = ME.message;
+        if isExcelBusy(ME) && ~strcmp(ME.identifier, 'writePerformanceToExcel:busy')
+            reason = ['Excel is busy (a cell is being edited or a dialog is open). ' ...
+                      'Press Enter or Esc in Excel, then re-run.'];
+        end
+        if attached
+            reason = [reason sprintf(['\n\nThe workbook open in Excel may contain ' ...
+                'partial, unsaved changes from this attempt -- check it before saving.'])];
+        end
         msg = sprintf(['Session performance was NOT saved to %s.\n\n%s\n\n' ...
              'The performance.fig is still saved, so you can re-run ' ...
-             'writePerformanceToExcel(vr) later.'], where, ME.message);
+             'writePerformanceToExcel(vr) later.'], where, reason);
         warning('writePerformanceToExcel:failed', '%s', msg);
         errordlg(msg, 'Session NOT logged', 'non-modal');
     end
@@ -184,7 +225,7 @@ function xlsFile = resolveTrackingLog(Excel, baseURL, mouseNum)
     mouseID = idString(mouseNum);
 
     masterURL = [baseURL '/' masterName];
-    mwb = Excel.Workbooks.Open(masterURL, 0, true);   % read-only
+    mwb = openWorkbook(Excel, masterURL, true);
     files = {};
     people = {};
     try
@@ -249,9 +290,128 @@ function s = idString(x)
     end
 end
 
+% NOTE: calls on the Excel *Application* object use get/set/invoke rather than
+% dot syntax. If MATLAB first meets an Excel Application while Excel is busy, it
+% caches an empty property list for that class and dot syntax (xl.Workbooks,
+% xl.DisplayAlerts, ...) keeps failing for the rest of the MATLAB session -- even
+% on new instances -- while get/set/invoke work again once Excel is free.
+
+function wb = openWorkbook(Excel, file, readOnly)
+    wb = invoke(get(Excel, 'Workbooks'), 'Open', file, 0, readOnly);
+end
+
+function xl = runningExcel()
+% The user's already-running Excel, or [] if none.
+    xl = [];
+    try, xl = actxGetRunningServer('Excel.Application'); catch, end
+end
+
+function wb = findOpenWorkbook(xl, xlsFile)
+% The workbook in Excel instance xl whose path/URL matches xlsFile, or [].
+    wb = [];
+    if isempty(xl), return, end
+    target = canonName(xlsFile);
+    try
+        wbs = get(xl, 'Workbooks');
+        for i = 1:get(wbs, 'Count')
+            w = invoke(wbs, 'Item', i);
+            if strcmp(canonName(w.FullName), target)
+                wb = w;
+                return
+            end
+        end
+    catch ME
+        % a busy Excel (cell in edit mode) rejects calls; report that rather than
+        % falling through to a read-only copy
+        if isExcelBusy(ME), rethrow(ME), end
+    end
+end
+
+function s = canonName(p)
+% Comparable form of a file path or SharePoint URL.
+    s = lower(strrep(strtrim(char(p)), '\', '/'));
+    s = strrep(s, '%20', ' ');
+    s = regexprep(s, '\?.*$', '');
+end
+
+function tf = isExcelBusy(ME)
+% Excel is in edit mode or showing a dialog. MATLAB reports the rejected COM call
+% as "Unrecognized ... property ... for class 'COM.Excel_Application'" (or with
+% the RPC_E_CALL_REJECTED / RETRYLATER codes).
+    m = lower(ME.message);
+    tf = contains(m, '0x80010001') || contains(m, '0x8001010a') || ...
+         contains(m, 'call was rejected') || contains(m, 'retrylater') || ...
+         (contains(m, 'unrecognized') && contains(m, 'com.excel_application'));
+end
+
+function xl = waitForUserExcel()
+% The user's running Excel ([] if none). If it's busy, wait up to ~30 s for it to
+% become responsive, then fail clearly.
+    for t = 1:15
+        xl = runningExcel();
+        if isempty(xl), return, end
+        try
+            get(get(xl, 'Workbooks'), 'Count');   % any call fails while Excel is busy
+            return
+        catch ME
+            if ~isExcelBusy(ME), xl = []; return, end   % unusable for another reason: ignore it
+            if t == 1
+                fprintf('Excel is busy (cell being edited?) -- press Enter or Esc in Excel...\n');
+            end
+            pause(2);
+        end
+    end
+    error('writePerformanceToExcel:busy', ['Excel is busy (a cell is being ' ...
+        'edited or a dialog is open). Press Enter or Esc in Excel, then re-run.']);
+end
+
+function p = excelPids()
+% IDs of running EXCEL.EXE processes.
+    p = [];
+    try
+        procs = System.Diagnostics.Process.GetProcessesByName('EXCEL');
+        p = zeros(1, procs.Length);
+        for i = 1:procs.Length
+            p(i) = double(procs(i).Id);
+        end
+    catch
+    end
+end
+
+function quitExcel(Excel, myPid)
+% Quit our hidden Excel. If that fails, kill the process so it can't stay
+% around holding the tracking log locked (which makes later sessions read-only).
+    ok = false;
+    try
+        invoke(Excel, 'Quit');
+        delete(Excel);
+        ok = true;
+    catch
+    end
+    if ~ok && isscalar(myPid)
+        try
+            System.Diagnostics.Process.GetProcessById(myPid).Kill();
+        catch
+        end
+    end
+end
+
 function verifyWritten(Excel, xlsFile, sheetName, row, written)
-% Re-open the saved workbook read-only and check every written cell.
-    vwb = Excel.Workbooks.Open(xlsFile, 0, true);
+% Re-open the saved workbook read-only and check every written cell. Retries a
+% few times since a SharePoint upload can lag slightly behind Save.
+    nTries = 3;
+    for t = 1:nTries
+        bad = readBackMismatches(Excel, xlsFile, sheetName, row, written);
+        if isempty(bad), return, end
+        if t < nTries, pause(5), end
+    end
+    error('writePerformanceToExcel:verifyFailed', ...
+        'Saved file did not contain the expected values for: %s (sheet "%s", row %d).', ...
+        strjoin(bad, ', '), sheetName, row);
+end
+
+function bad = readBackMismatches(Excel, xlsFile, sheetName, row, written)
+    vwb = openWorkbook(Excel, xlsFile, true);
     bad = {};
     try
         sh = vwb.Sheets.Item(sheetName);
@@ -272,11 +432,6 @@ function verifyWritten(Excel, xlsFile, sheetName, row, written)
         rethrow(ME);
     end
     vwb.Close(false);
-    if ~isempty(bad)
-        error('writePerformanceToExcel:verifyFailed', ...
-            'Saved file did not contain the expected values for: %s (sheet "%s", row %d).', ...
-            strjoin(bad, ', '), sheetName, row);
-    end
 end
 
 function msg = successMessage(xlsFile, sheetName, row, vr, written)
@@ -373,30 +528,22 @@ function n = rigNumber(vr)
 end
 
 function sheet = findAnimalSheet(wb, mouseNum)
-% Worksheet named mouseNum (case-insensitive), else the one whose name starts
-% with mouseNum; if none or several match, ask the user to pick. The exact check
-% comes first so "JB1" isn't ambiguous with "JB10", "JB11", ...
-    sheet = [];
+% Worksheet named exactly mouseNum (case-insensitive, surrounding spaces
+% ignored). No partial matching, so data can't land in "JB10" when "JB1" is
+% missing -- a missing sheet is an error instead.
     mouseNum = idString(mouseNum);
     n = wb.Sheets.Count;
     names = cell(1, n);
     for i = 1:n
         names{i} = char(wb.Sheets.Item(i).Name);
     end
-    hit = find(strcmpi(strtrim(names), mouseNum));
+    hit = find(strcmpi(strtrim(names), mouseNum), 1);
     if isempty(hit)
-        hit = find(strncmpi(names, mouseNum, numel(mouseNum)));
+        error('writePerformanceToExcel:noSheet', ...
+            'No sheet named "%s" in %s. Sheets in that file: %s', ...
+            mouseNum, char(wb.Name), strjoin(names, ', '));
     end
-    if numel(hit) == 1
-        sheet = wb.Sheets.Item(hit);
-        return
-    end
-    [sel, ok] = listdlg('ListString', names, 'SelectionMode', 'single', ...
-        'PromptString', sprintf('Pick the sheet for animal "%s":', mouseNum), ...
-        'Name', 'Select animal sheet');
-    if ok
-        sheet = wb.Sheets.Item(sel);
-    end
+    sheet = wb.Sheets.Item(hit);
 end
 
 function key = normalizeHeader(h)
@@ -479,7 +626,7 @@ function insertRowBelow(sheet, aboveRow, nCols)
     dst = sheet.Range([a1(newRow, 1)  ':' a1(newRow, nCols)]);
     src.Copy();
     dst.PasteSpecial(-4122);   % xlPasteFormats
-    sheet.Application.CutCopyMode = false;
+    set(get(sheet, 'Application'), 'CutCopyMode', false);
 
     % carry down formula cells only (R1C1 keeps relative references correct);
     % literal-value cells are left blank

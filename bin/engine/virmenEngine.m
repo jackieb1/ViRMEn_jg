@@ -412,8 +412,9 @@ end
 try
     mazeName = '';
     try, mazeName = vr.exper.name; catch, end
-    if ischar(mazeName) && (startsWith(lower(mazeName), 'lineartrack') || ...
-                            startsWith(lower(mazeName), 'widelineartrack'))
+    isDebug = isfield(vr, 'debugMode') && vr.debugMode;   % debug runs use a random mouse ID
+    if ~isDebug && ischar(mazeName) && (startsWith(lower(mazeName), 'lineartrack') || ...
+                                        startsWith(lower(mazeName), 'widelineartrack'))
         writePerformanceToExcel(vr);
     end
 catch
