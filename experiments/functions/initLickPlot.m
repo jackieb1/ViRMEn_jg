@@ -41,6 +41,40 @@ function vr = initLickPlot(vr)
         vr.lickPlot.omitColor        = [0.9 0.5 0];
     end
 
+    % ---- unexpected-reward markers ----
+    % Only set up for tasks that maintain vr.numUnexpectedRewards (the unexpected-reward
+    % task), detected in updateLickPlot the same way as rewards. Unexpected rewards do
+    % not increment vr.numRewards, so they never appear as ordinary reward lines.
+    vr.lickPlot.showUnexpected = isfield(vr, 'numUnexpectedRewards');
+    if vr.lickPlot.showUnexpected
+        vr.lickPlot.unexpT             = [];
+        vr.lickPlot.lastNumUnexpected  = NaN;
+        vr.lickPlot.unexpColor         = [0 0.65 0.2];
+    end
+
+    % ---- reward-size colouring ----
+    % Only for tasks with variable reward sizes (vr.rewardSizeValues, set by
+    % getVarRewardParams). Each reward line is coloured by its size on a light -> dark
+    % magenta ramp (small -> large). The size of each reward is taken from the rise in
+    % vr.totalRewardVolume, so manual 'r'-key rewards are sized too; a size that is not
+    % one of vr.rewardSizeValues falls back to the plain magenta line (hRew).
+    vr.lickPlot.colorBySize = isfield(vr, 'rewardSizeValues') && ...
+                              ~isempty(vr.rewardSizeValues) && isfield(vr, 'totalRewardVolume');
+    if vr.lickPlot.colorBySize
+        sizes = sort(vr.rewardSizeValues(:).');
+        nS    = numel(sizes);
+        lightC = [1 0.65 1];  darkC = [0.35 0 0.4];
+        if nS == 1
+            f = 0.5;
+        else
+            f = (0:nS-1) / (nS-1);
+        end
+        vr.lickPlot.sizeVals      = sizes;
+        vr.lickPlot.sizeColors    = lightC + f(:) .* (darkC - lightC);   % nS x 3
+        vr.lickPlot.rewSize       = [];     % ul of each entry in rewT
+        vr.lickPlot.lastRewVolume = NaN;
+    end
+
     % ---- figure ----
     screenSize = get(0,'ScreenSize');
     figW = 700; figH = 300;
@@ -54,9 +88,20 @@ function vr = initLickPlot(vr)
     vr.lickPlot.ax   = ax;
     vr.lickPlot.hRew = plot(ax, nan, nan, '-', 'LineWidth', 1, ...
         'Color', vr.lickPlot.rewColor);   % reward markers (drawn first = behind trace)
+    if vr.lickPlot.colorBySize
+        vr.lickPlot.hRewSize = gobjects(1, numel(vr.lickPlot.sizeVals));
+        for k = 1:numel(vr.lickPlot.sizeVals)
+            vr.lickPlot.hRewSize(k) = plot(ax, nan, nan, '-', 'LineWidth', 1.5, ...
+                'Color', vr.lickPlot.sizeColors(k,:));   % one line per reward size
+        end
+    end
     if vr.lickPlot.showOmissions
         vr.lickPlot.hOmit = plot(ax, nan, nan, '--', 'LineWidth', 1, ...
             'Color', vr.lickPlot.omitColor);  % omission markers (also behind trace)
+    end
+    if vr.lickPlot.showUnexpected
+        vr.lickPlot.hUnexp = plot(ax, nan, nan, '-', 'LineWidth', 1.5, ...
+            'Color', vr.lickPlot.unexpColor); % unexpected-reward markers (also behind trace)
     end
     vr.lickPlot.hRaw = plot(ax, nan, nan, '-', 'LineWidth', 1, 'Color', [0 0.2 0.7]);
     yline(ax, vr.lickPlot.thresh, '--', ...
@@ -65,8 +110,19 @@ function vr = initLickPlot(vr)
     ylabel(ax, 'ai3 (V)');
     xlabel(ax, 'time (s)');
     titleStr = 'Lick sensor live voltage  (ai3)   {\color[rgb]{0.8 0 0.8}| = reward}';
+    if vr.lickPlot.colorBySize
+        titleStr = 'Lick sensor live voltage  (ai3)   reward:';
+        for k = 1:numel(vr.lickPlot.sizeVals)
+            c = vr.lickPlot.sizeColors(k,:);
+            titleStr = [titleStr sprintf(' {\\color[rgb]{%.2f %.2f %.2f}| %g ul}', ...
+                c, vr.lickPlot.sizeVals(k))]; %#ok<AGROW>
+        end
+    end
     if vr.lickPlot.showOmissions
         titleStr = [titleStr '   {\color[rgb]{0.9 0.5 0}| = omission}'];
+    end
+    if vr.lickPlot.showUnexpected
+        titleStr = [titleStr '   {\color[rgb]{0 0.65 0.2}| = unexpected}'];
     end
     title(ax, titleStr);
     ylim(ax, [-0.5 5.5]);

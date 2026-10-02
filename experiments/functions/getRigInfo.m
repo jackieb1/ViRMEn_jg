@@ -51,7 +51,7 @@ switch rigName
         %         ops.defaultMaxNumRewards = '200';
 
         % base data directory settings
-        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\TestDataDir';
+        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\Data';
 
     case 'GreenLab_Behavior_rig2'
         ops.rigName = rigName;
@@ -82,7 +82,7 @@ switch rigName
         %         ops.defaultMaxNumRewards = '200';
 
         % base data directory settings
-        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\LocalDataDir';
+        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\Data';
 
     case 'GreenLab_2P'
         ops.rigName = rigName;
@@ -94,8 +94,8 @@ switch rigName
 
 
         % ball sensor offset
-        ops.ballSensorOffset = [1.642, 1.647, 1.646]; % JEB - 2026-05-14
-        ops.forwardGain = -135;
+        ops.ballSensorOffset = [1.6517, 1.647, 1.646]; % JEB - 2026-05-14
+        ops.forwardGain = -137;
         ops.forwardDeadband = 0.003; % volts; suppress resting +/-1-count jitter on data(1). Tune to just above resting noise.
         ops.viewAngleGain = 27;
         ops.sideGain = ops.forwardGain / 4;
@@ -105,15 +105,19 @@ switch rigName
         ops.useTeensyReward = true;
         ops.comPortTeensy = 'COM4';
         ops.rewardPulseDurationDict = containers.Map;
-        ops.rewardPulseDurationDict('4') = 0.065;
-        ops.rewardPulseDurationDict('2') = 0.035;
-        ops.rewardPulseDurationDict('7') = 0.075;
+        ops.rewardPulseDurationDict('4') = 0.055;
+        ops.rewardPulseDurationDict('2') = 0.04;
+        ops.rewardPulseDurationDict('8') = 0.100;
         ops.defaultRewardSize = '4';
         ops.defaultMaxRewardVolume = '800';
         %         ops.defaultMaxNumRewards = '200';
 
         % base data directory settings
-        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\TestDataDir';
+        ops.dataDirectory = 'C:\Users\GreenLab\Desktop\VIRMENData';
+
+        % URL for SharePoint Training Logs folder.  Needed in order to
+        % automatically write performance info to your Training Log spreadsheet
+        ops.trainingLogURL = 'https://molbio.sharepoint.com/sites/GreenLab/Shared%20Documents/Training%20Logs/';
 
 
     case '0' % try to find name automatically

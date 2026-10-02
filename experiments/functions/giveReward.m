@@ -4,7 +4,13 @@ function [vr] = giveReward(vr,nRew,varargin)
 %   nRew - number of rewards to deliver
 %   varargin{1} - optional reward size in ul. Tasks that vary reward size within a
 %                 session pass it so the printout says which size was delivered.
-if nargin >= 3 && ~isempty(varargin{1})
+%   varargin{2} - optional message to print instead of the default line. Pass ''
+%                 to print nothing (the caller has already printed its own line).
+if nargin >= 4
+    if ~isempty(varargin{2})
+        disp(varargin{2});
+    end
+elseif nargin >= 3 && ~isempty(varargin{1})
     disp(['Giving reward number ', num2str(vr.numRewards), ...
           ' - size ', num2str(varargin{1}), ' ul']);
 else

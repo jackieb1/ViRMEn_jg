@@ -22,7 +22,9 @@ methods
 
 		% Define the serial port object.
 		fprintf('Starting serial on port: %s\n', arduinoPortName);
+		warnState = warning('off','instrument:serial:ClassToBeRemoved'); % TODO: migrate to serialport
 		serialPort = serial(arduinoPortName);
+		warning(warnState);
 
 		% Set the baud rate
 		serialPort.BaudRate = 9600;
@@ -117,8 +119,6 @@ methods (Static)
 	function port = findFirstArduinoPort(vr)
 		% finds the first port with an Arduino on it.
 
-		serialInfo = instrhwinfo('serial');
-		archstr = computer('arch');
         port = vr.ops.comPortTeensy;
 		%port = 'COM7';
         

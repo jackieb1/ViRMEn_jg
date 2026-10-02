@@ -14,6 +14,7 @@ code.termination = @terminationCodeFun;
 function vr = initializationCodeFun(vr)
 vr.debugMode = false;
 vr.ops = getRigInfo();
+vr.rewardSize = vr.ops.defaultRewardSize; % no makeVirmenDir here, so set reward size for giveReward
 vr = initTMaze(vr);
 vr = initDAQ(vr);
 vr.worlds{vr.currentWorld}.backgroundColor = [0 0 0];

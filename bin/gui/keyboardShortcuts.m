@@ -3,7 +3,7 @@ function keyboardShortcuts(fig,evt) %#ok<INUSL>
 global guifig;
 handles = guidata(guifig);
 
-src = findobj(guifig,'type','uipanel','shadowcolor','r');
+src = getappdata(guifig,'activePanel');
 
 if isempty(evt.Modifier)
     modifier = '';

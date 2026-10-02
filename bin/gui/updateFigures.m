@@ -623,16 +623,15 @@ set(f,'oncallback',onCall,'offcallback',offCall);
 
 drawnow;
 if ~strcmp(handles.highlightFig.(type),'0')
-    set(findobj(guifig,'type','uipanel'),'shadowcolor',[.5 .5 .5],'highlightcolor','w');
-    set(handles.figs.(handles.highlightFig.(type)),'shadowcolor','r','highlightcolor','r');
+    setActivePanel(handles.figs.(handles.highlightFig.(type)));
 end
-if isempty(findobj(guifig,'type','uipanel','visible','on','shadowcolor','r'))
+activePanel = getappdata(guifig,'activePanel');
+if isempty(activePanel) || ~isvalid(activePanel) || strcmp(get(activePanel,'visible'),'off')
     priority = {'textureSketch','worldSketch','worldsMenu','textureDrawing', ...
         'worldDrawing','shapeProperties','objectProperties','experimentProperties','variablesTable'};
-    set(findobj(guifig,'type','uipanel'),'shadowcolor',[.5 .5 .5],'highlightcolor','w');
     for ndx = 1:length(priority)
         if strcmp(get(handles.figs.(priority{ndx}),'visible'),'on')
-            set(handles.figs.(priority{ndx}),'shadowcolor','r','highlightcolor','r');
+            setActivePanel(handles.figs.(priority{ndx}));
             break
         end
     end
@@ -648,7 +647,7 @@ for ndx = 1:length(bNames)
         st = [0 st length(ud)+1]; %#ok<AGROW>
         isVisible = false;
         for fg = 1:length(st)-1
-            if all(get(handles.figs.(ud(st(fg)+1:st(fg+1)-1)),'highlightcolor')==[1 0 0])
+            if isequal(handles.figs.(ud(st(fg)+1:st(fg+1)-1)),getappdata(guifig,'activePanel'))
                 isVisible = true;
             end
         end
