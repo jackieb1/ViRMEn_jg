@@ -6,3 +6,4 @@ transformations/transformToroidalMex_new.c
 *.asv
 *.asv
 *.asv
+experiments/functions/getRigInfo.m
