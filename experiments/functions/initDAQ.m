@@ -25,11 +25,15 @@ if ~vr.debugMode
 % %     vr.ao.addAnalogOutputChannel(vr.ops.dev, 'ao1', 'Voltage');
 %     vr.ao.Rate = 1e3;
 
+    % Digital lines are on-demand only (we only use outputSingleScan), so
+    % silence the "does not support clocked sampling" warning
+    warnState = warning('off','daq:Session:onDemandOnlyChannelsAdded');
     vr.dio = daq.createSession('ni');
     vr.dio.addDigitalChannel(vr.ops.dioDev, 'Port0/Line0', 'OutputOnly'); % Virmen trigger
 
     vr.optoDIO = daq.createSession('ni');
     vr.optoDIO.addDigitalChannel(vr.ops.dioDev, vr.ops.optoDIOPort, 'OutputOnly'); % photostim trigger
+    warning(warnState);
     
     % Saved from before as reference for troubleshooting
 %     vr.dio = daq.createSession('ni');

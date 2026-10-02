@@ -1,7 +1,5 @@
 function vr = makeVirmenDir(vr)
 
-currentdir = cd;
-
 if vr.debugMode
     vr.mouseNum = randi(1e6,1)+1e3;
     vr.basePath = 'C:\DATA\Debug';
@@ -36,22 +34,18 @@ if ~exist(vr.fullPath,'dir')
    vr.fullPath = [vr.fullPath filesep subFolder];
    mkdir(vr.fullPath);    
 else
-    warning('Path Already Exists!');
     % check for what subFolders exist in the directory already, then use a
-    % session_ID that does not exist yet
-    % list all Folders with name containing 'session'
-    cd(vr.fullPath);
-    
-    sessionFolds = dir('session*');
-    sessionFolds = sessionFolds([sessionFolds(:).isdir]); % only use items named session* that are folders
-    session_ID = sessionFolds(numel(sessionFolds)).name; % get the latest session_ID folder
-    session_ID = str2num(session_ID(end)); % get the number of the latest session folder
-    subFolder = strcat('session_',num2str(session_ID+1)); % create a new subFolder with an incremented session_ID
+    % session_ID one higher than the highest existing one
+    sessionFolds = dir(fullfile(vr.fullPath,'session_*'));
+    sessionFolds = sessionFolds([sessionFolds(:).isdir]); % only use items named session_* that are folders
+    tokens = regexp({sessionFolds.name},'^session_(\d+)$','tokens','once');
+    tokens = tokens(~cellfun(@isempty,tokens));
+    session_IDs = cellfun(@(t)str2double(t{1}),tokens);
+    subFolder = sprintf('session_%d',max([0 session_IDs])+1); % create a new subFolder with an incremented session_ID
+    fprintf('Data folder for today already exists; creating %s\n',subFolder);
     vr.fullPath = [vr.fullPath filesep subFolder];
     mkdir(vr.fullPath);
 end
 vr.sessionID = subFolder;
-
-cd(currentdir)
  
 end    
