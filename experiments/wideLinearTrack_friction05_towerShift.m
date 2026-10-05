@@ -40,7 +40,7 @@ function vr = initializationCodeFun(vr)
     vr.sideOffset = 0;
     vr.correctRewardProbability = 1;
 
-    vr.blockSize = 3;
+    vr.blockSize = 50;
     vr.currentWorld = 1;
 
 
