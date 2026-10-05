@@ -60,10 +60,10 @@ function vr = runtimeCodeFun(vr)
     vr = checkForManualReward(vr); % Deliver reward if 'r' key pressed
 
     if vr.position(2) > (vr.lastRewardLocation + vr.rewardDistance)
-        disp(['correctRewardProb ' vr.correctRewardProbability])
+%         disp(['correctRewardProb ' vr.correctRewardProbability])
         vr = giveRecordProbReward(vr, vr.correctRewardProbability);
         vr.lastRewardLocation = vr.position(2);
-        disp(['lastRewardLocation' vr.lastRewardLocation])
+%         disp(['lastRewardLocation' vr.lastRewardLocation])
     end
 
 
