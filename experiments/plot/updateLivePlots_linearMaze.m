@@ -1,5 +1,5 @@
 function vr = updateLivePlots_linearMaze(vr)
-    figure(vr.performanceFig);
+    set(0, 'CurrentFigure', vr.performanceFig);   % make current without raising/focusing the window
 
     % Time per trial
     subplot(vr.livePlot_opt.nRows,vr.livePlot_opt.nSubplots, 1)

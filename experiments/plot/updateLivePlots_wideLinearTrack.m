@@ -1,5 +1,5 @@
 function vr = updateLivePlots_wideLinearTrack(vr)
-    figure(vr.performanceFig);
+    set(0, 'CurrentFigure', vr.performanceFig);   % make current without raising/focusing the window
     smooth_window = 20;
     
     % Overall performance plot

@@ -2,7 +2,7 @@ function vr = updateLivePlots(vr)
     % Update online behavioral metric plots
     smooth_window = 20;
     colors = {'red', 'blue', 'magenta', 'cyan'};
-    figure(vr.performanceFig);
+    set(0, 'CurrentFigure', vr.performanceFig);   % make current without raising/focusing the window
 
     % Overall performance plot
     subplot(vr.livePlot_opt.nRows,vr.livePlot_opt.nSubplots,1)

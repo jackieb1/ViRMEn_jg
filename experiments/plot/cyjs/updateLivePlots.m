@@ -1,7 +1,7 @@
 function vr = updateLivePlots(vr)
     % Update online behavioral metric plots
     behavData = vr.behaviorData(:,1:vr.trialIterations);
-    figure(vr.livePlotFig);
+    set(0, 'CurrentFigure', vr.livePlotFig);   % make current without raising/focusing the window
     rew_delay_start_ix = find(behavData(8,:) == -1,1); 
     x = behavData(5,1:rew_delay_start_ix);
     y = behavData(6,1:rew_delay_start_ix);
@@ -71,7 +71,7 @@ function vr = updateLivePlots(vr)
     vr = fading_runningTraj_livePlot(vr); 
     
     if strcmp(vr.exper_name,'dynSwitching_CYJS')
-        figure(vr.performanceFig);
+        set(0, 'CurrentFigure', vr.performanceFig);   % make current without raising/focusing the window
         subplot(1,3,1)
         cla; hold on;
         plot(smoothdata(vr.Rewards,'gaussian',15),'k','linewidth',1.5);
@@ -103,7 +103,7 @@ function vr = updateLivePlots(vr)
                 xline(vr.switches); 
             end
         end
-        figure(vr.livePlotFig);
+        set(0, 'CurrentFigure', vr.livePlotFig);   % make current without raising/focusing the window
     end
 end
 
