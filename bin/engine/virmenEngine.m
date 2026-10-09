@@ -394,6 +394,17 @@ disp(['Ran ' num2str(vr.iterations-1) ' iterations in ' num2str(vr.timeElapsed,4
 drawnow;
 virmenOpenGLRoutines(2);
 
+% Record which maze was run in the session folder (maze_id.txt).
+% Centralized here so every experiment is covered; never affects the run.
+try
+    if isfield(vr, 'fullPath') && exist(vr.fullPath, 'dir')
+        fid = fopen(fullfile(vr.fullPath, 'maze_id.txt'), 'w');
+        fprintf(fid, '%s\n', vr.exper.name);
+        fclose(fid);
+    end
+catch
+end
+
 % Run termination code
 try
     vr.code.termination(vr);
