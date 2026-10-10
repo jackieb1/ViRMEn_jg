@@ -33,13 +33,13 @@ function vr = initializationCodeFun(vr)
     
     % Initialize maze
     vr.rewardLocation = 350;
-    vr.switchTrial = 50;
+    vr.switchTrial = 50; %50
     vr.cue_location = 50;
     vr.cue_appeared = 0;
     vr.nextIsCue = 0;
     vr.cueProbability = 0.2;
     vr.cueCount = 0;
-    vr.switchCueCount = 30;
+    vr.switchCueCount = 30; %30
 
 %% --- RUNTIME code: executes on every iteration of the ViRMEn engine.
 function vr = runtimeCodeFun(vr)

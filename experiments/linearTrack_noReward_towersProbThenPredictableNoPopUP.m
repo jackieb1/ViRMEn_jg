@@ -34,12 +34,12 @@ function vr = initializationCodeFun(vr)
     
     % Initialize maze
     vr.rewardLocation = 350;
-    vr.switchTrial = 1;
+    vr.switchTrial = 50;
     vr.tower_location = 50;
     vr.tower_appeared = 0;
     vr.towerProbability = 0.2;
-    vr.towerCount = 0;
-    vr.switchTowerCount = 1;
+    vr.towerCount = 0; 
+    vr.switchTowerCount = 30;
 
     % Pre-draw tower sequence (1 = tower on that trial) so the wrapped copies
     % ahead show the actual upcoming trials. Trials 1-50 no tower, then 20%
